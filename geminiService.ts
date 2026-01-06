@@ -5,6 +5,12 @@ import * as pdfjs from "pdfjs-dist";
 
 // Cấu hình worker cho pdfjs
 pdfjs.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.10.38/build/pdf.worker.mjs`;
+function createAI(apiKey: string) {
+  if (!apiKey || !apiKey.trim()) {
+    throw new Error("Bạn chưa nhập API key Gemini.");
+  }
+  return new GoogleGenAI({ apiKey: apiKey.trim() });
+}
 
 const SYSTEM_PROMPT = `Bạn là Chuyên gia Tư vấn Giáo dục cao cấp tại Việt Nam, am hiểu sâu sắc Chương trình GDPT 2018 và Công văn 5512.
 NHIỆM VỤ: Thiết kế Kế hoạch bài dạy (KHBG) tích hợp LỒNG GHÉP GIÁO DỤC QUỐC PHÒNG VÀ AN NINH theo Thông tư 08/2024/TT-BGDĐT.
@@ -178,20 +184,19 @@ async function getPdfVisualDiagnosis(pdfBase64: string): Promise<{
   }
 }
 
-export async function extractCatalogFromPdf(pdfBase64: string): Promise<string[]> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+export async function extractCatalogFromPdf(pdfBase64: string, apiKey: string): Promise<string[]> {
+  const ai = createAI(apiKey);
   const diagnosis = await getPdfVisualDiagnosis(pdfBase64);
+
   const contentParts: any[] = [];
   diagnosis.pageImages.forEach(imgBase64 => {
     contentParts.push({ inlineData: { data: imgBase64, mimeType: "image/jpeg" } });
   });
   contentParts.push({ text: `VĂN BẢN TRÍCH XUẤT: ${diagnosis.summaryText}` });
 
-  const instruction = `Tìm và liệt kê danh sách tên các bài học từ mục lục. Trả về mảng JSON các chuỗi ký tự.`;
-
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview", 
+      model: "gemini-3-flash-preview",
       contents: [{ parts: contentParts }],
       config: {
         responseMimeType: "application/json",
@@ -211,9 +216,17 @@ export async function extractLessonMetadata(fileContent: string): Promise<{
   ten_bai_day: string;
   subject?: string;
   lop?: string;
+  so_tiet?: stringexport async function extractLessonMetadata(
+  fileContent: string,
+  apiKey: string
+): Promise<{
+  ten_bai_day: string;
+  subject?: string;
+  lop?: string;
   so_tiet?: string;
 }> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  const ai = createAI(apiKey);
+
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
@@ -247,13 +260,13 @@ export async function extractLessonMetadata(fileContent: string): Promise<{
   }
 }
 
-export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-  let contentParts: any[] = [];
-  
-  if (inputs.autoComposeMode === 'TEXTBOOK' && inputs.textbookPdfData) {
-     contentParts.push({ inlineData: { data: inputs.textbookPdfData, mimeType: "application/pdf" } });
-     contentParts.push({ text: `SOẠN GIÁO ÁN CHI TIẾT BÀI: "${inputs.ten_bai_day}" từ nội dung SGK PDF đính kèm.` });
+export async function generateLessonPlan(inputs: FormInputs, apiKey: string): Promise<LessonPlan> {
+  const ai = createAI(apiKey);
+  const contentParts: any[] = [];
+
+  if (inputs.autoComposeMode === 'TEXTBOOK' && (inputs as any).textbookPdfData) {
+    contentParts.push({ inlineData: { data: (inputs as any).textbookPdfData, mimeType: "application/pdf" } });
+    contentParts.push({ text: `SOẠN GIÁO ÁN CHI TIẾT BÀI: "${inputs.ten_bai_day}" từ nội dung SGK PDF đính kèm.` });
   } else {
     contentParts.push({ text: `SOẠN GIÁO ÁN CHI TIẾT BÀI: "${inputs.ten_bai_day}" theo cấu trúc mẫu: ${inputs.khbg_mau.substring(0, 6000)}` });
   }
@@ -272,6 +285,7 @@ export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan
         thinkingConfig: { thinkingBudget: 32768 }
       },
     });
+
     const plan = JSON.parse(response.text || "{}") as LessonPlan;
     plan.header.truong = inputs.truong;
     plan.header.to = inputs.to;
@@ -282,6 +296,6 @@ export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan
     plan.header.so_tiet = inputs.so_tiet;
     return plan;
   } catch (e: any) {
-    throw new Error("Lỗi thiết kế giáo án: " + e.message);
+    throw new Error("Lỗi thiết kế giáo án: " + (e?.message || e));
   }
 }
