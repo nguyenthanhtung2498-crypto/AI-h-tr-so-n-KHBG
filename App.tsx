@@ -25,7 +25,7 @@ const App: React.FC = () => {
       return null;
     }
   });
-
+  const [userApiKey, setUserApiKey] = useState<string>("");
   const [view, setView] = useState<AppView>('FORM');
   const [catalog, setCatalog] = useState<string[]>([]);
   const [isExtractingMetadata, setIsExtractingMetadata] = useState(false);
@@ -57,18 +57,20 @@ const App: React.FC = () => {
   const [result, setResult] = useState<LessonPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = (userData: UserSession) => {
-    localStorage.setItem('lesson_plan_session', JSON.stringify(userData));
-    setSession(userData);
-    setInputs(prev => ({ ...prev, giao_vien: userData.username }));
-  };
+  const handleLogin = (userData: UserSession, apiKey: string) => {
+  localStorage.setItem('lesson_plan_session', JSON.stringify(userData)); // chỉ lưu user + role
+  setSession(userData);
+  setUserApiKey(apiKey); // ✅ lưu API key trong RAM
+  setInputs(prev => ({ ...prev, giao_vien: userData.username }));
+};
 
   const handleLogout = () => {
-    localStorage.removeItem('lesson_plan_session');
-    setSession(null);
-    setResult(null);
-    setView('FORM');
-  };
+  localStorage.removeItem('lesson_plan_session');
+  setSession(null);
+  setUserApiKey(""); // ✅ xoá API key khỏi RAM
+  setResult(null);
+  setView('FORM');
+};
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
