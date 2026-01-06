@@ -116,7 +116,7 @@ const App: React.FC = () => {
         const base64 = await blobToBase64(file);
         setInputs(prev => ({ ...prev, textbookPdfData: base64 }));
         try {
-          const lessons = await extractCatalogFromPdf(base64);
+          const lessons = await extractCatalogFromPdf(base64, userApiKey);
           if (lessons.length > 0) {
             setCatalog(lessons);
             setView('CATALOG');
@@ -148,7 +148,7 @@ const App: React.FC = () => {
       if (fieldName === 'khbg_mau' && text) {
         setIsExtractingMetadata(true);
         try {
-          const meta = await extractLessonMetadata(text);
+          const meta = await extractLessonMetadata(text, userApiKey);;
           const filled = new Set<string>();
           
           setInputs(prev => {
@@ -190,7 +190,7 @@ const App: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const plan = await generateLessonPlan(inputs);
+      const plan = await generateLessonPlan(inputs, userApiKey);
       setResult(plan);
       setView('RESULT');
     } catch (err: any) {
