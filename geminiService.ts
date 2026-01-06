@@ -2,16 +2,15 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { FormInputs, LessonPlan } from "./types";
 import * as pdfjs from "pdfjs-dist";
 
-// ✅ Cấu hình worker cho pdfjs (chạy trên browser)
+// ✅ Worker pdfjs (chạy trên browser)
 pdfjs.GlobalWorkerOptions.workerSrc =
   "https://esm.sh/pdfjs-dist@4.10.38/build/pdf.worker.mjs";
 
-// ✅ Tạo AI client theo API key người dùng nhập (không lưu)
+// ✅ Tạo AI client theo API key người dùng nhập
 function createAI(apiKey: string) {
-  if (!apiKey || !apiKey.trim()) {
-    throw new Error("Bạn chưa nhập API key Gemini.");
-  }
-  return new GoogleGenAI({ apiKey: apiKey.trim() });
+  const key = (apiKey || "").trim();
+  if (!key) throw new Error("Bạn chưa nhập API key Gemini.");
+  return new GoogleGenAI({ apiKey: key });
 }
 
 const SYSTEM_PROMPT = `Bạn là Chuyên gia Tư vấn Giáo dục cao cấp tại Việt Nam, am hiểu sâu sắc Chương trình GDPT 2018 và Công văn 5512.
@@ -135,9 +134,11 @@ const lessonPlanSchema = {
   required: ["header", "muc_tieu", "thiet_bi_hoc_lieu", "tien_trinh_day_hoc", "ai_assessment", "tich_hop"],
 };
 
-async function getPdfVisualDiagnosis(
-  pdfBase64: string
-): Promise<{ summaryText: string; pageImages: string[]; totalPages: number }> {
+async function getPdfVisualDiagnosis(pdfBase64: string): Promise<{
+  summaryText: string;
+  pageImages: string[];
+  totalPages: number;
+}> {
   try {
     const pdfData = atob(pdfBase64);
     const uint8Array = new Uint8Array(pdfData.length);
@@ -149,7 +150,6 @@ async function getPdfVisualDiagnosis(
     let summaryText = "";
     const pageImages: string[] = [];
 
-    // ✅ quét vài trang đầu + vài trang cuối
     const targetPages = new Set<number>();
     for (let i = 1; i <= Math.min(5, pdf.numPages); i++) targetPages.add(i);
 
@@ -160,22 +160,22 @@ async function getPdfVisualDiagnosis(
 
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d");
+    if (!context) {
+      return { summaryText: "", pageImages: [], totalPages: pdf.numPages };
+    }
 
     for (const pageNum of pageIndices) {
       try {
         const page = await pdf.getPage(pageNum);
 
-        // text extract
         const content = await page.getTextContent();
         const strings = (content.items as any[]).map((it) => it.str).join(" ");
         summaryText += `[Trang ${pageNum}]: ${strings}\n\n`;
 
-        // render to image
         const viewport = page.getViewport({ scale: 1.2 });
-        canvas.height = viewport.height;
         canvas.width = viewport.width;
+        canvas.height = viewport.height;
 
-        if (!context) continue;
         await page.render({ canvasContext: context, viewport }).promise;
         const imgData = canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
         pageImages.push(imgData);
@@ -235,11 +235,11 @@ export async function extractLessonMetadata(
 
 Yêu cầu trích xuất:
 - Tên bài dạy (ten_bai_day)
-- Môn học (subject): Chọn 1 trong các giá trị: KHTN, TOÁN, NGỮ VĂN, TIẾNG ANH, LỊCH SỬ - ĐỊA LÍ, GDCD.
+- Môn học (subject): Chọn 1 trong: KHTN, TOÁN, NGỮ VĂN, TIẾNG ANH, LỊCH SỬ - ĐỊA LÍ, GDCD.
 - Khối lớp (lop): Ví dụ 6, 7, 8 hoặc 9.
 - Số tiết (so_tiet): Ví dụ 1, 2, 3...
 
-Trả về định dạng JSON chính xác.`,
+Trả về JSON chính xác.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -294,7 +294,6 @@ export async function generateLessonPlan(inputs: FormInputs, apiKey: string): Pr
 
     const plan = JSON.parse(response.text || "{}") as LessonPlan;
 
-    // đảm bảo header đúng thông tin người dùng nhập
     plan.header.truong = inputs.truong;
     plan.header.to = inputs.to;
     plan.header.giao_vien = inputs.giao_vien;
