@@ -1,4 +1,3 @@
-// api.ts
 const APPS_SCRIPT_URL = (window as any).process?.env?.APPS_SCRIPT_URL;
 const ADMIN_MASTER_KEY = (window as any).process?.env?.ADMIN_MASTER_KEY;
 
@@ -18,11 +17,7 @@ export async function loginUser(email: string, password: string) {
   return callScript({ action: "login", email, password });
 }
 
-export async function adminCreateUser(
-  email: string,
-  password: string,
-  role: "user" | "admin" = "user"
-) {
+export async function adminCreateUser(email: string, password: string, role: "user" | "admin" = "user") {
   if (!ADMIN_MASTER_KEY) throw new Error("Thiếu ADMIN_MASTER_KEY trong index.html");
 
   return callScript({
