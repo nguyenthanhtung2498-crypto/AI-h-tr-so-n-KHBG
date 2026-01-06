@@ -1,18 +1,51 @@
+// src/api.ts
 
-const APPS_SCRIPT_URL = (window as any).process?.env?.APPS_SCRIPT_URL;
+export type LoginResponse =
+  | { ok: true; role: "admin" | "user" }
+  | { ok: false; error: string };
 
-async function callScript(payload: any) {
-  if (!APPS_SCRIPT_URL) throw new Error("Thiếu APPS_SCRIPT_URL trong index.html");
+const APPS_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbwJ6n08dUlx5AArYzSYGLe_Z2InfiRpl8oX2QRoczzw_k6zEgFyIGhHpmiEKF1O2sIy/exec";
 
+export async function loginUser(
+  username: string,
+  password: string
+): Promise<LoginResponse> {
   const res = await fetch(APPS_SCRIPT_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "login",
+      username,
+      password,
+    }),
   });
 
-  return await res.json();
-}
+  let data: any = null;
+  try {
+    data = await res.json();
+  } catch {
+    return { ok: false, error: "Server không trả JSON hợp lệ." };
+  }
 
-export async function loginUser(email: string, password: string) {
-  return callScript({ action: "login", email, password });
+  if (data?.ok === true) {
+    return {
+      ok: true,
+      role: data.role === "admin" ? "admin" : "user",
+    };
+  }
+
+  if (data?.success === true) {
+    return {
+      ok: true,
+      role: data.role === "admin" ? "admin" : "user",
+    };
+  }
+
+  return {
+    ok: false,
+    error: data?.error || "Đăng nhập thất bại.",
+  };
 }
