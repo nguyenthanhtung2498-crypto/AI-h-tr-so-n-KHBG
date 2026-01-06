@@ -82,5 +82,6 @@ export interface FormInputs {
   phu_luc_3: string;
   khbg_mau: string;
   nang_luc_so: string;
-  autoCompose?: boolean;
+  autoComposeMode: 'TEMPLATE' | 'TEXTBOOK';
+  textbookPdfData?: string; // base64
 }

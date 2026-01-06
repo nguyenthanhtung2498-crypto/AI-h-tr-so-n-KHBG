@@ -1,25 +1,20 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { FormInputs, LessonPlan } from "./types";
+import * as pdfjs from "pdfjs-dist";
 
-const SYSTEM_PROMPT = `Bạn là Chuyên gia Tư vấn Giáo dục cao cấp, am hiểu sâu sắc Chương trình GDPT 2018, Công văn 5512 và Công văn 3456/BGDĐT-GDPT.
+// Cấu hình worker cho pdfjs
+pdfjs.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.10.38/build/pdf.worker.mjs`;
 
-NHIỆM VỤ CỐT LÕI:
-1. Thiết kế Kế hoạch bài dạy (KHBG) THCS chính xác theo cấu trúc 5512.
-2. CĂN CỨ VÀO KHBG MẪU: Nếu người dùng cung cấp tệp mẫu, bạn phải bám sát phong cách trình bày, ngôn ngữ và các đầu mục của mẫu đó, nhưng cập nhật nội dung kiến thức cho bài dạy mới.
+const SYSTEM_PROMPT = `Bạn là Chuyên gia Tư vấn Giáo dục cao cấp tại Việt Nam, am hiểu sâu sắc Chương trình GDPT 2018 và Công văn 5512.
+NHIỆM VỤ: Thiết kế Kế hoạch bài dạy (KHBG) tích hợp LỒNG GHÉP GIÁO DỤC QUỐC PHÒNG VÀ AN NINH theo Thông tư 08/2024/TT-BGDĐT.
 
-QUY TẮC TÍCH HỢP NĂNG LỰC SỐ (NLS) & ĐẶC THÙ:
-- Tại mục "I. Mục tiêu -> 2. Năng lực -> Năng lực đặc thù":
-  + Phải liệt kê năng lực đặc thù của môn học (Ví dụ môn KHTN: Nhận thức KHTN, Tìm hiểu tự nhiên, Vận dụng kiến thức...).
-  + Chọn chính xác 1 hoặc 2 chỉ báo Năng lực số (NLS) phù hợp nhất từ CV 3456. KHÔNG liệt kê quá nhiều.
-- Tại mục "III. Tiến trình dạy học": Mô tả rõ HS sử dụng thiết bị/công cụ số nào để hình thành NLS đó.
+QUY ĐỊNH LỒNG GHÉP ANQP CHI TIẾT THEO KHỐI LỚP (BẮT BUỘC TUÂN THỦ):
+- LỚP 6: Giới thiệu lịch sử, truyền thống Quân đội/Công an; các địa danh lịch sử kháng chiến; cách đánh mưu trí, sáng tạo của quân và dân ta.
+- LỚP 7: Hoạt động bảo vệ chủ quyền biển, đảo; bảo vệ thông tin cá nhân trên mạng xã hội; quyền tự do tín ngưỡng, tôn giáo.
+- LỚP 8: Lòng tự hào dân tộc và sức mạnh đại đoàn kết; giới thiệu các mốc quốc giới; tác hại tệ nạn xã hội; phòng chống bạo lực học đường.
+- LỚP 9: Hậu quả chiến tranh xâm lược; phát triển kinh tế gắn với quốc phòng; các bài hát ca ngợi truyền thống QĐND/CAND; trách nhiệm bảo vệ Tổ quốc.`;
 
-QUY TẮC KĨ THUẬT DẠY HỌC:
-- Bắt buộc áp dụng ít nhất 01 kĩ thuật dạy học mang tính hợp tác, tích cực (như Mảnh ghép, Khăn trải bàn, KWL, Phòng tranh, XYZ, Sơ đồ tư duy,...) vào phần "d) Tổ chức thực hiện" của một hoạt động phù hợp.
-- Ghi rõ tên kĩ thuật dạy học và cách thức triển khai để tăng tính tương tác giữa HS.
-
-CẤU TRÚC JSON PHẢI TRẢ VỀ: Phải trả về một đối tượng JSON hợp lệ theo cấu trúc quy định.`;
-
-// Schema for structured output
 const lessonPlanSchema = {
   type: Type.OBJECT,
   properties: {
@@ -89,9 +84,9 @@ const lessonPlanSchema = {
             properties: {
               tieu_chi: { type: Type.STRING },
               muc_dat: { type: Type.STRING },
-              minh_chung: { type: Type.STRING }
+              min_chung: { type: Type.STRING }
             },
-            required: ["tieu_chi", "muc_dat", "minh_chung"]
+            required: ["tieu_chi", "muc_dat", "min_chung"]
           }
         },
         huong_dan_dao_duc_ai: { type: Type.ARRAY, items: { type: Type.STRING } }
@@ -132,43 +127,144 @@ const lessonPlanSchema = {
   required: ["header", "muc_tieu", "thiet_bi_hoc_lieu", "tien_trinh_day_hoc", "ai_assessment", "tich_hop"]
 };
 
-export async function extractLessonTitle(fileContent: string): Promise<string> {
-  // Directly use process.env.API_KEY as per guidelines
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: `Dưới đây là nội dung giáo án. Hãy trích xuất duy nhất "Tên bài dạy". Nội dung: ${fileContent.substring(0, 2000)}`,
-  });
+async function getPdfVisualDiagnosis(pdfBase64: string): Promise<{ 
+  summaryText: string; 
+  pageImages: string[];
+  totalPages: number;
+}> {
+  try {
+    const pdfData = atob(pdfBase64);
+    const uint8Array = new Uint8Array(pdfData.length);
+    for (let i = 0; i < pdfData.length; i++) {
+      uint8Array[i] = pdfData.charCodeAt(i);
+    }
 
-  return response.text || "";
+    const loadingTask = pdfjs.getDocument({ data: uint8Array });
+    const pdf = await loadingTask.promise;
+    
+    let summaryText = "";
+    const pageImages: string[] = [];
+    const targetPages = new Set<number>();
+    
+    for (let i = 1; i <= Math.min(5, pdf.numPages); i++) targetPages.add(i);
+    const scanDepth = 12; 
+    for (let i = Math.max(1, pdf.numPages - scanDepth); i <= pdf.numPages; i++) targetPages.add(i);
+
+    const pageIndices = Array.from(targetPages).sort((a, b) => a - b);
+    
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+
+    for (const pageNum of pageIndices) {
+      try {
+        const page = await pdf.getPage(pageNum);
+        const content = await page.getTextContent();
+        const strings = content.items.map((it: any) => it.str).join(" ");
+        summaryText += `[Trang ${pageNum}]: ${strings}\n\n`;
+
+        const viewport = page.getViewport({ scale: 1.2 });
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        
+        await page.render({ canvasContext: context!, viewport }).promise;
+        const imgData = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+        pageImages.push(imgData);
+      } catch (e) {}
+    }
+    
+    return { summaryText, pageImages, totalPages: pdf.numPages };
+  } catch (e) {
+    throw new Error("Lỗi xử lý PDF.");
+  }
+}
+
+export async function extractCatalogFromPdf(pdfBase64: string): Promise<string[]> {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  const diagnosis = await getPdfVisualDiagnosis(pdfBase64);
+  const contentParts: any[] = [];
+  diagnosis.pageImages.forEach(imgBase64 => {
+    contentParts.push({ inlineData: { data: imgBase64, mimeType: "image/jpeg" } });
+  });
+  contentParts.push({ text: `VĂN BẢN TRÍCH XUẤT: ${diagnosis.summaryText}` });
+
+  const instruction = `Tìm và liệt kê danh sách tên các bài học từ mục lục. Trả về mảng JSON các chuỗi ký tự.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview", 
+      contents: [{ parts: contentParts }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
+      }
+    });
+    return JSON.parse(response.text || "[]");
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * Trích xuất toàn bộ thông tin chi tiết bài học từ văn bản giáo án mẫu
+ */
+export async function extractLessonMetadata(fileContent: string): Promise<{
+  ten_bai_day: string;
+  subject?: string;
+  lop?: string;
+  so_tiet?: string;
+}> {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Hãy trích xuất thông tin hành chính từ giáo án sau: 
+      "${fileContent.substring(0, 4000)}"
+      
+      Yêu cầu trích xuất:
+      - Tên bài dạy (ten_bai_day)
+      - Môn học (subject): Chọn 1 trong các giá trị: KHTN, TOÁN, NGỮ VĂN, TIẾNG ANH, LỊCH SỬ - ĐỊA LÍ, GDCD.
+      - Khối lớp (lop): Ví dụ 6, 7, 8 hoặc 9.
+      - Số tiết (so_tiet): Ví dụ 1, 2, 3...
+      
+      Trả về định dạng JSON chính xác.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            ten_bai_day: { type: Type.STRING },
+            subject: { type: Type.STRING },
+            lop: { type: Type.STRING },
+            so_tiet: { type: Type.STRING }
+          },
+          required: ["ten_bai_day"]
+        }
+      }
+    });
+    return JSON.parse(response.text || "{}");
+  } catch (e) {
+    return { ten_bai_day: "" };
+  }
 }
 
 export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan> {
-  // Directly use process.env.API_KEY as per guidelines
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  let contentParts: any[] = [];
   
-  const contextMessage = `
-DỮ LIỆU BÀI DẠY:
-- Tên bài: "${inputs.ten_bai_day}"
-- Môn: ${inputs.subject} | Lớp: ${inputs.lop} | Tiết: ${inputs.so_tiet}
+  if (inputs.autoComposeMode === 'TEXTBOOK' && inputs.textbookPdfData) {
+     contentParts.push({ inlineData: { data: inputs.textbookPdfData, mimeType: "application/pdf" } });
+     contentParts.push({ text: `SOẠN GIÁO ÁN CHI TIẾT BÀI: "${inputs.ten_bai_day}" từ nội dung SGK PDF đính kèm.` });
+  } else {
+    contentParts.push({ text: `SOẠN GIÁO ÁN CHI TIẾT BÀI: "${inputs.ten_bai_day}" theo cấu trúc mẫu: ${inputs.khbg_mau.substring(0, 6000)}` });
+  }
 
-TÀI LIỆU CĂN CỨ:
-1. KHBG MẪU: ${inputs.khbg_mau ? inputs.khbg_mau.substring(0, 4000) : "Tự động soạn thảo chuẩn 5512"}
-2. NĂNG LỰC SỐ: ${inputs.nang_luc_so ? inputs.nang_luc_so.substring(0, 2000) : "Tích hợp mức trung cấp phù hợp THCS"}
-3. PHỤ LỤC: ${inputs.phu_luc_1.substring(0, 1000)} | ${inputs.phu_luc_3.substring(0, 1000)}
-
-YÊU CẦU ĐẶC BIỆT:
-- Chỉ chọn 1-2 chỉ báo NLS.
-- Bổ sung Năng lực đặc thù của môn ${inputs.subject}.
-- Sử dụng Kĩ thuật dạy học mang tính hợp tác (như Khăn trải bàn, Mảnh ghép...) trong ít nhất 1 hoạt động.
-- Tích hợp ANQP: ${inputs.integrate_ANQP ? "Có" : "Không"}
-- Tích hợp Bảo vệ môi trường: ${inputs.integrate_environment ? "Có" : "Không"}
-- Đánh giá Năng lực AI: ${inputs.ai_competency_assessment ? "Có" : "Không"}`;
+  const promptText = `Căn cứ hành chính: Trường ${inputs.truong}, GV ${inputs.giao_vien}, Môn ${inputs.subject}, Lớp ${inputs.lop}, Tiết ${inputs.so_tiet}. Tích hợp ANQP lớp ${inputs.lop} theo TT 08/2024.`;
+  contentParts.push({ text: promptText });
 
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
-      contents: contextMessage,
+      contents: [{ parts: contentParts }],
       config: {
         systemInstruction: SYSTEM_PROMPT,
         responseMimeType: "application/json",
@@ -176,13 +272,7 @@ YÊU CẦU ĐẶC BIỆT:
         thinkingConfig: { thinkingBudget: 32768 }
       },
     });
-
-    const text = response.text;
-    if (!text) throw new Error("AI không phản hồi.");
-    
-    const plan = JSON.parse(text) as LessonPlan;
-    
-    // Đảm bảo thông tin định danh luôn đúng theo input người dùng
+    const plan = JSON.parse(response.text || "{}") as LessonPlan;
     plan.header.truong = inputs.truong;
     plan.header.to = inputs.to;
     plan.header.giao_vien = inputs.giao_vien;
@@ -190,10 +280,8 @@ YÊU CẦU ĐẶC BIỆT:
     plan.header.mon = inputs.subject;
     plan.header.lop = inputs.lop;
     plan.header.so_tiet = inputs.so_tiet;
-
     return plan;
   } catch (e: any) {
-    console.error("Lỗi trong quá trình gọi Gemini API:", e);
-    throw new Error("Không thể tạo giáo án. Vui lòng kiểm tra lại tài liệu tải lên hoặc kết nối mạng.");
+    throw new Error("Lỗi thiết kế giáo án: " + e.message);
   }
 }
