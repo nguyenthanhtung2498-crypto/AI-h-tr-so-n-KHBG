@@ -11,6 +11,8 @@ function createAI(apiKey: string) {
   }
   return new GoogleGenAI({ apiKey: apiKey.trim() });
 }
+  return new GoogleGenAI({ apiKey: apiKey.trim() });
+}
 
 const SYSTEM_PROMPT = `Bạn là Chuyên gia Tư vấn Giáo dục cao cấp tại Việt Nam, am hiểu sâu sắc Chương trình GDPT 2018 và Công văn 5512.
 NHIỆM VỤ: Thiết kế Kế hoạch bài dạy (KHBG) tích hợp LỒNG GHÉP GIÁO DỤC QUỐC PHÒNG VÀ AN NINH theo Thông tư 08/2024/TT-BGDĐT.
