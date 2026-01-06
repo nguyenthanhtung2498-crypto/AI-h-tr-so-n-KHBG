@@ -61,10 +61,6 @@ export interface LessonPlan {
     ANQP: IntegrationTopic;
     BAO_VE_MT: IntegrationTopic;
   };
-  nguon_noi_dung: {
-    tom_tat_tu_file_upload: string[];
-    noi_dung_suy_luan_can_ra_soat: string[];
-  };
 }
 
 export type Subject = 'KHTN' | 'TOÁN' | 'NGỮ VĂN' | 'TIẾNG ANH' | 'LỊCH SỬ - ĐỊA LÍ' | 'GDCD';
@@ -86,4 +82,5 @@ export interface FormInputs {
   phu_luc_3: string;
   khbg_mau: string;
   nang_luc_so: string;
+  autoCompose?: boolean;
 }

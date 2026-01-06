@@ -1,6 +1,6 @@
 
 import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle } from "docx";
-import { LessonPlan } from "./types.ts";
+import { LessonPlan } from "./types";
 
 export async function exportToWord(plan: LessonPlan) {
   const doc = new Document({
@@ -37,7 +37,6 @@ export async function exportToWord(plan: LessonPlan) {
                       }),
                       new Paragraph({
                         alignment: AlignmentType.CENTER,
-                        // Fix: Changed 'italic' to 'italics' to match docx IRunOptions
                         children: [new TextRun({ text: "Độc lập - Tự do - Hạnh phúc", bold: true, italics: true })],
                       }),
                     ],
@@ -46,9 +45,7 @@ export async function exportToWord(plan: LessonPlan) {
               }),
             ],
           }),
-
           new Paragraph({ spacing: { before: 400, after: 400 } }),
-
           new Paragraph({
             alignment: AlignmentType.CENTER,
             heading: HeadingLevel.HEADING_1,
@@ -61,23 +58,17 @@ export async function exportToWord(plan: LessonPlan) {
           new Paragraph({
             alignment: AlignmentType.CENTER,
             children: [
-              // Fix: Changed 'italic' to 'italics' to match docx IRunOptions
               new TextRun({ text: `Môn: ${plan.header.mon} | Lớp: ${plan.header.lop} | Thời gian: ${plan.header.so_tiet} tiết`, italics: true }),
             ],
           }),
-
           new Paragraph({ spacing: { before: 400 } }),
-
           new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: "I. Mục tiêu", bold: true, size: 24 })] }),
           new Paragraph({ children: [new TextRun({ text: "1. Kiến thức:", bold: true })] }),
           ...plan.muc_tieu.kien_thuc.map(t => new Paragraph({ children: [new TextRun({ text: `- ${t}` })], indent: { left: 720 } })),
-
           new Paragraph({ children: [new TextRun({ text: "2. Năng lực:", bold: true })] }),
           ...plan.muc_tieu.nang_luc.dac_thu.map(t => new Paragraph({ children: [new TextRun({ text: `- ${t}` })], indent: { left: 720 } })),
-
           new Paragraph({ spacing: { before: 200 } }),
           new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: "III. Tiến trình dạy học", bold: true, size: 24 })] }),
-
           ...plan.tien_trinh_day_hoc.flatMap(hd => [
             new Paragraph({
               spacing: { before: 300 },

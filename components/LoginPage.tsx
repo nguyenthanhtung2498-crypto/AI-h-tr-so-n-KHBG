@@ -1,137 +1,192 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+
+interface UserData {
+  username: string;
+  isAdmin: boolean;
+}
 
 interface LoginPageProps {
-  onLogin: (username: string) => void;
+  onLogin: (userData: UserData) => void;
+}
+
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+  interface Window {
+    aistudio?: AIStudio;
+  }
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+  const [step, setStep] = useState(1);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [hasKey, setHasKey] = useState(false);
+  const [showError, setShowError] = useState('');
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (username && password) {
-      // API Key được quản lý tự động bởi nền tảng qua process.env.API_KEY
-      onLogin(username);
-    } else {
-      setError('Vui lòng nhập đầy đủ Tài khoản và Mật khẩu.');
+  useEffect(() => {
+    checkKeyStatus();
+  }, []);
+
+  const checkKeyStatus = async () => {
+    try {
+      const selected = await window.aistudio?.hasSelectedApiKey();
+      setHasKey(!!selected);
+    } catch (e) {
+      console.warn("AI Studio bridge not available");
     }
   };
 
-  const handleOpenSelectKey = async () => {
+  const handleSelectKey = async () => {
     try {
-      if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-        await window.aistudio.openSelectKey();
-        alert("Đã kết nối API Key từ hệ thống thành công.");
-      } else {
-        alert("Tính năng này chỉ khả dụng trong môi trường AI Studio.");
-      }
-    } catch (err) {
-      console.error("Lỗi khi mở trình chọn key:", err);
+      await window.aistudio?.openSelectKey();
+      setHasKey(true);
+      // Chuyển sang bước 2 sau khi chọn key
+      setTimeout(() => setStep(2), 500);
+    } catch (e) {
+      setShowError("Không thể mở trình chọn Key.");
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!hasKey) {
+      setStep(1);
+      return;
+    }
+
+    if (username.trim() && password.trim()) {
+      // Logic xác thực cơ bản: admin/admin hoặc bất kỳ tài khoản nào khác
+      const isAdmin = username.toLowerCase() === 'admin';
+      onLogin({ username, isAdmin });
+    } else {
+      setShowError("Vui lòng nhập đầy đủ tài khoản và mật khẩu.");
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 relative overflow-hidden bg-slate-900">
-      {/* Hiệu ứng nền */}
-      <div className="absolute top-0 -left-4 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
-      <div className="absolute top-0 -right-4 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse delay-700"></div>
-      <div className="absolute -bottom-8 left-20 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse delay-1000"></div>
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 py-12">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-105"
+        style={{ 
+          backgroundImage: 'url("https://generativelanguage.googleapis.com/v1beta/files/ey931kic0l6v")',
+          filter: 'brightness(0.4) blur(1px)' 
+        }}
+      />
+      <div className="absolute inset-0 z-10 bg-gradient-to-tr from-indigo-950/90 via-black/40 to-indigo-900/60" />
 
-      <div className="max-w-md w-full space-y-8 bg-white/10 backdrop-blur-2xl p-10 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] relative z-10 border border-white/20">
+      {/* Login Card */}
+      <div className="max-w-md w-full space-y-8 bg-white/10 backdrop-blur-2xl p-8 sm:p-10 rounded-[3rem] shadow-[0_32px_64px_rgba(0,0,0,0.7)] relative z-20 border border-white/20 animate-in fade-in zoom-in duration-500">
         <div className="text-center">
-          <div className="relative inline-block mb-6">
-            <div className="absolute inset-0 bg-indigo-500 rounded-3xl blur-2xl opacity-30"></div>
-            <div className="relative bg-white p-5 rounded-3xl shadow-2xl border border-white/40 transform transition-transform hover:scale-105 duration-300">
-              <img 
-                src="./input_file_1.png" 
-                alt="Logo Trường" 
-                className="w-24 h-24 sm:w-32 sm:h-32 object-contain mx-auto"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=LOGO';
-                }}
-              />
-            </div>
+          <div className="mx-auto h-20 w-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl flex items-center justify-center mb-6 shadow-2xl border border-white/30">
+            <svg className="h-10 w-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
           </div>
-          
-          <h2 className="text-3xl font-black text-white uppercase tracking-tight drop-shadow-md">
-            Cổng Giáo Viên
+          <h2 className="text-3xl font-black text-white tracking-tighter uppercase leading-tight drop-shadow-lg">
+            Hệ thống Soạn KHBG
           </h2>
-          <div className="mt-2 flex items-center justify-center space-x-2">
-            <span className="h-px w-8 bg-indigo-400/50"></span>
-            <p className="text-[11px] text-indigo-200 font-black uppercase tracking-[0.2em]">
-              Hệ thống KHBG Chuẩn 5512
-            </p>
-            <span className="h-px w-8 bg-indigo-400/50"></span>
-          </div>
+          <p className="mt-1 text-xs text-indigo-300 font-bold tracking-[0.2em] uppercase">
+            THCS Huỳnh Thúc Kháng
+          </p>
         </div>
-        
-        <form className="mt-8 space-y-5" onSubmit={handleLogin}>
-          <div className="space-y-4">
-            <div className="group">
-              <label className="block text-[10px] font-black text-indigo-300 uppercase mb-1.5 ml-1 tracking-widest transition-colors group-focus-within:text-white">
-                Tài khoản
-              </label>
-              <input
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="appearance-none rounded-2xl relative block w-full px-4 py-3.5 bg-white/5 border border-white/10 placeholder-indigo-300/50 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white/10 transition-all sm:text-sm"
-                placeholder="Nhập tên đăng nhập"
-              />
-            </div>
 
-            <div className="group">
-              <label className="block text-[10px] font-black text-indigo-300 uppercase mb-1.5 ml-1 tracking-widest transition-colors group-focus-within:text-white">
-                Mật khẩu
-              </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none rounded-2xl relative block w-full px-4 py-3.5 bg-white/5 border border-white/10 placeholder-indigo-300/50 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white/10 transition-all sm:text-sm"
-                placeholder="••••••••"
-              />
-            </div>
+        {/* Stepper Indicator */}
+        <div className="flex items-center justify-center space-x-4 mb-8">
+          <div className={`h-2 w-12 rounded-full transition-all duration-500 ${step === 1 ? 'bg-indigo-500' : 'bg-white/20'}`} />
+          <div className={`h-2 w-12 rounded-full transition-all duration-500 ${step === 2 ? 'bg-indigo-500' : 'bg-white/20'}`} />
+        </div>
 
-            <div className="pt-2">
+        {step === 1 ? (
+          <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+            <div className="text-center">
+              <h3 className="text-white font-bold text-sm uppercase tracking-widest mb-2">Bước 1: Kết nối API Key</h3>
+              <p className="text-white/60 text-[10px] leading-relaxed px-4">
+                Sử dụng API Key cá nhân để đảm bảo hiệu suất xử lý giáo án nhanh nhất.
+              </p>
+            </div>
+            
+            <button 
+              onClick={handleSelectKey}
+              className={`w-full py-4 px-4 rounded-2xl text-xs font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center space-x-3 ${hasKey ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-xl shadow-indigo-600/20'}`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+              <span>{hasKey ? 'Đã kết nối API - Tiếp tục' : 'Chọn API Key cá nhân'}</span>
+            </button>
+
+            {hasKey && (
               <button 
-                type="button" 
-                onClick={handleOpenSelectKey}
-                className="w-full flex items-center justify-center space-x-2 py-3 px-4 border border-indigo-500/30 rounded-2xl text-[11px] font-black text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 hover:text-white transition-all uppercase tracking-widest"
+                onClick={() => setStep(2)}
+                className="w-full text-white/40 text-[10px] uppercase font-bold tracking-widest hover:text-white transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
-                <span>Kết nối API Key hệ thống</span>
+                Hoặc nhấn để tiếp tục →
               </button>
-            </div>
+            )}
           </div>
-
-          {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center space-x-2">
-              <svg className="w-4 h-4 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"></path></svg>
-              <p className="text-red-400 text-[11px] font-bold">{error}</p>
+        ) : (
+          <form className="space-y-5 animate-in slide-in-from-right-4 duration-300" onSubmit={handleSubmit}>
+            <div className="text-center">
+              <h3 className="text-white font-bold text-sm uppercase tracking-widest mb-2">Bước 2: Đăng nhập tài khoản</h3>
             </div>
-          )}
 
-          <button
-            type="submit"
-            className="group relative w-full flex justify-center py-4 px-4 border border-transparent text-sm font-black rounded-2xl text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all shadow-[0_10px_30px_rgba(79,70,229,0.3)] hover:shadow-indigo-500/50 uppercase tracking-[0.15em] transform active:scale-95"
-          >
-            Đăng nhập hệ thống
-          </button>
-        </form>
+            <div className="space-y-4">
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-300 transition-colors group-focus-within:text-white">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                </div>
+                <input
+                  type="text"
+                  required
+                  className="w-full pl-11 pr-4 py-4 bg-white/5 border border-white/10 placeholder-white/20 text-white rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 sm:text-sm transition-all"
+                  placeholder="Tên đăng nhập (hoặc admin)"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
 
-        <div className="text-center mt-8">
-          <p className="text-[10px] text-indigo-200/40 font-medium leading-relaxed uppercase tracking-wider">
-            Chuẩn hóa 5512 - GDPT 2018
-            <br />
-            <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-white transition-colors font-bold mt-1 inline-block">
-              Chi tiết về API Key & Thanh toán
-            </a>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-300 transition-colors group-focus-within:text-white">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                </div>
+                <input
+                  type="password"
+                  required
+                  className="w-full pl-11 pr-4 py-4 bg-white/5 border border-white/10 placeholder-white/20 text-white rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 sm:text-sm transition-all"
+                  placeholder="Mật khẩu"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {showError && (
+              <p className="text-red-400 text-[10px] font-bold text-center uppercase tracking-wider">{showError}</p>
+            )}
+
+            <button
+              type="submit"
+              className="w-full py-4 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl text-sm font-black uppercase tracking-[0.2em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all"
+            >
+              Vào hệ thống
+            </button>
+
+            <button 
+              type="button"
+              onClick={() => setStep(1)}
+              className="w-full text-white/40 text-[9px] uppercase font-bold tracking-widest hover:text-white transition-colors flex items-center justify-center"
+            >
+              ← Quay lại bước 1
+            </button>
+          </form>
+        )}
+
+        <div className="text-center pt-2">
+          <p className="text-[9px] text-white/20 font-bold tracking-[0.3em] uppercase">
+            Education Intelligence 4.0
           </p>
         </div>
       </div>
