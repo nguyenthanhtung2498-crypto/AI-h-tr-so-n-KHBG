@@ -1,16 +1,16 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { FormInputs, LessonPlan } from "./types";
 import * as pdfjs from "pdfjs-dist";
 
-// Cấu hình worker cho pdfjs
-pdfjs.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.10.38/build/pdf.worker.mjs`;
+// ✅ Cấu hình worker cho pdfjs (chạy trên browser)
+pdfjs.GlobalWorkerOptions.workerSrc =
+  "https://esm.sh/pdfjs-dist@4.10.38/build/pdf.worker.mjs";
+
+// ✅ Tạo AI client theo API key người dùng nhập (không lưu)
 function createAI(apiKey: string) {
   if (!apiKey || !apiKey.trim()) {
     throw new Error("Bạn chưa nhập API key Gemini.");
   }
-  return new GoogleGenAI({ apiKey: apiKey.trim() });
-}
   return new GoogleGenAI({ apiKey: apiKey.trim() });
 }
 
@@ -36,9 +36,9 @@ const lessonPlanSchema = {
         mon: { type: Type.STRING },
         lop: { type: Type.STRING },
         so_tiet: { type: Type.STRING },
-        ghi_chu: { type: Type.STRING }
+        ghi_chu: { type: Type.STRING },
       },
-      required: ["truong", "to", "giao_vien", "ten_bai_day", "mon", "lop", "so_tiet"]
+      required: ["truong", "to", "giao_vien", "ten_bai_day", "mon", "lop", "so_tiet"],
     },
     muc_tieu: {
       type: Type.OBJECT,
@@ -48,13 +48,13 @@ const lessonPlanSchema = {
           type: Type.OBJECT,
           properties: {
             chung: { type: Type.ARRAY, items: { type: Type.STRING } },
-            dac_thu: { type: Type.ARRAY, items: { type: Type.STRING } }
+            dac_thu: { type: Type.ARRAY, items: { type: Type.STRING } },
           },
-          required: ["chung", "dac_thu"]
+          required: ["chung", "dac_thu"],
         },
-        pham_chat: { type: Type.ARRAY, items: { type: Type.STRING } }
+        pham_chat: { type: Type.ARRAY, items: { type: Type.STRING } },
       },
-      required: ["kien_thuc", "nang_luc", "pham_chat"]
+      required: ["kien_thuc", "nang_luc", "pham_chat"],
     },
     thiet_bi_hoc_lieu: { type: Type.ARRAY, items: { type: Type.STRING } },
     tien_trinh_day_hoc: {
@@ -73,13 +73,13 @@ const lessonPlanSchema = {
               chuyen_giao_nhiem_vu: { type: Type.ARRAY, items: { type: Type.STRING } },
               thuc_hien_nhiem_vu: { type: Type.ARRAY, items: { type: Type.STRING } },
               bao_cao_thao_luan: { type: Type.ARRAY, items: { type: Type.STRING } },
-              ket_luan_nhan_dinh: { type: Type.ARRAY, items: { type: Type.STRING } }
+              ket_luan_nhan_dinh: { type: Type.ARRAY, items: { type: Type.STRING } },
             },
-            required: ["chuyen_giao_nhiem_vu", "thuc_hien_nhiem_vu", "bao_cao_thao_luan", "ket_luan_nhan_dinh"]
-          }
+            required: ["chuyen_giao_nhiem_vu", "thuc_hien_nhiem_vu", "bao_cao_thao_luan", "ket_luan_nhan_dinh"],
+          },
         },
-        required: ["hoat_dong_so", "ten_hoat_dong", "muc_tieu", "noi_dung", "san_pham", "to_chuc_thuc_hien"]
-      }
+        required: ["hoat_dong_so", "ten_hoat_dong", "muc_tieu", "noi_dung", "san_pham", "to_chuc_thuc_hien"],
+      },
     },
     ai_assessment: {
       type: Type.OBJECT,
@@ -92,14 +92,14 @@ const lessonPlanSchema = {
             properties: {
               tieu_chi: { type: Type.STRING },
               muc_dat: { type: Type.STRING },
-              min_chung: { type: Type.STRING }
+              min_chung: { type: Type.STRING },
             },
-            required: ["tieu_chi", "muc_dat", "min_chung"]
-          }
+            required: ["tieu_chi", "muc_dat", "min_chung"],
+          },
         },
-        huong_dan_dao_duc_ai: { type: Type.ARRAY, items: { type: Type.STRING } }
+        huong_dan_dao_duc_ai: { type: Type.ARRAY, items: { type: Type.STRING } },
       },
-      required: ["enabled", "rubric", "huong_dan_dao_duc_ai"]
+      required: ["enabled", "rubric", "huong_dan_dao_duc_ai"],
     },
     tich_hop: {
       type: Type.OBJECT,
@@ -108,80 +108,84 @@ const lessonPlanSchema = {
           type: Type.OBJECT,
           properties: {
             enabled: { type: Type.BOOLEAN },
-            the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } }
+            the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } },
           },
-          required: ["enabled", "the_hien_o"]
+          required: ["enabled", "the_hien_o"],
         },
         ANQP: {
           type: Type.OBJECT,
           properties: {
             enabled: { type: Type.BOOLEAN },
-            the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } }
+            the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } },
           },
-          required: ["enabled", "the_hien_o"]
+          required: ["enabled", "the_hien_o"],
         },
         BAO_VE_MT: {
           type: Type.OBJECT,
           properties: {
             enabled: { type: Type.BOOLEAN },
-            the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } }
+            the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } },
           },
-          required: ["enabled", "the_hien_o"]
-        }
+          required: ["enabled", "the_hien_o"],
+        },
       },
-      required: ["ATGT", "ANQP", "BAO_VE_MT"]
-    }
+      required: ["ATGT", "ANQP", "BAO_VE_MT"],
+    },
   },
-  required: ["header", "muc_tieu", "thiet_bi_hoc_lieu", "tien_trinh_day_hoc", "ai_assessment", "tich_hop"]
+  required: ["header", "muc_tieu", "thiet_bi_hoc_lieu", "tien_trinh_day_hoc", "ai_assessment", "tich_hop"],
 };
 
-async function getPdfVisualDiagnosis(pdfBase64: string): Promise<{ 
-  summaryText: string; 
-  pageImages: string[];
-  totalPages: number;
-}> {
+async function getPdfVisualDiagnosis(
+  pdfBase64: string
+): Promise<{ summaryText: string; pageImages: string[]; totalPages: number }> {
   try {
     const pdfData = atob(pdfBase64);
     const uint8Array = new Uint8Array(pdfData.length);
-    for (let i = 0; i < pdfData.length; i++) {
-      uint8Array[i] = pdfData.charCodeAt(i);
-    }
+    for (let i = 0; i < pdfData.length; i++) uint8Array[i] = pdfData.charCodeAt(i);
 
     const loadingTask = pdfjs.getDocument({ data: uint8Array });
     const pdf = await loadingTask.promise;
-    
+
     let summaryText = "";
     const pageImages: string[] = [];
+
+    // ✅ quét vài trang đầu + vài trang cuối
     const targetPages = new Set<number>();
-    
     for (let i = 1; i <= Math.min(5, pdf.numPages); i++) targetPages.add(i);
-    const scanDepth = 12; 
+
+    const scanDepth = 12;
     for (let i = Math.max(1, pdf.numPages - scanDepth); i <= pdf.numPages; i++) targetPages.add(i);
 
     const pageIndices = Array.from(targetPages).sort((a, b) => a - b);
-    
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
+
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
 
     for (const pageNum of pageIndices) {
       try {
         const page = await pdf.getPage(pageNum);
+
+        // text extract
         const content = await page.getTextContent();
-        const strings = content.items.map((it: any) => it.str).join(" ");
+        const strings = (content.items as any[]).map((it) => it.str).join(" ");
         summaryText += `[Trang ${pageNum}]: ${strings}\n\n`;
 
+        // render to image
         const viewport = page.getViewport({ scale: 1.2 });
         canvas.height = viewport.height;
         canvas.width = viewport.width;
-        
-        await page.render({ canvasContext: context!, viewport }).promise;
-        const imgData = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+        if (!context) continue;
+        await page.render({ canvasContext: context, viewport }).promise;
+        const imgData = canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
         pageImages.push(imgData);
-      } catch (e) {}
+      } catch {
+        // bỏ qua trang lỗi
+      }
     }
-    
+
     return { summaryText, pageImages, totalPages: pdf.numPages };
-  } catch (e) {
+  } catch {
     throw new Error("Lỗi xử lý PDF.");
   }
 }
@@ -191,9 +195,9 @@ export async function extractCatalogFromPdf(pdfBase64: string, apiKey: string): 
   const diagnosis = await getPdfVisualDiagnosis(pdfBase64);
 
   const contentParts: any[] = [];
-  diagnosis.pageImages.forEach(imgBase64 => {
+  for (const imgBase64 of diagnosis.pageImages) {
     contentParts.push({ inlineData: { data: imgBase64, mimeType: "image/jpeg" } });
-  });
+  }
   contentParts.push({ text: `VĂN BẢN TRÍCH XUẤT: ${diagnosis.summaryText}` });
 
   try {
@@ -202,23 +206,17 @@ export async function extractCatalogFromPdf(pdfBase64: string, apiKey: string): 
       contents: [{ parts: contentParts }],
       config: {
         responseMimeType: "application/json",
-        responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
-      }
+        responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } },
+      },
     });
+
     return JSON.parse(response.text || "[]");
-  } catch (e) {
+  } catch {
     return [];
   }
 }
 
-/**
- * Trích xuất toàn bộ thông tin chi tiết bài học từ văn bản giáo án mẫu
- */
-export async function extractLessonMetadata(fileContent: string): Promise<{
-  ten_bai_day: string;
-  subject?: string;
-  lop?: string;
-  so_tiet?: stringexport async function extractLessonMetadata(
+export async function extractLessonMetadata(
   fileContent: string,
   apiKey: string
 ): Promise<{
@@ -232,16 +230,16 @@ export async function extractLessonMetadata(fileContent: string): Promise<{
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Hãy trích xuất thông tin hành chính từ giáo án sau: 
-      "${fileContent.substring(0, 4000)}"
-      
-      Yêu cầu trích xuất:
-      - Tên bài dạy (ten_bai_day)
-      - Môn học (subject): Chọn 1 trong các giá trị: KHTN, TOÁN, NGỮ VĂN, TIẾNG ANH, LỊCH SỬ - ĐỊA LÍ, GDCD.
-      - Khối lớp (lop): Ví dụ 6, 7, 8 hoặc 9.
-      - Số tiết (so_tiet): Ví dụ 1, 2, 3...
-      
-      Trả về định dạng JSON chính xác.`,
+      contents: `Hãy trích xuất thông tin hành chính từ giáo án sau:
+"${fileContent.substring(0, 4000)}"
+
+Yêu cầu trích xuất:
+- Tên bài dạy (ten_bai_day)
+- Môn học (subject): Chọn 1 trong các giá trị: KHTN, TOÁN, NGỮ VĂN, TIẾNG ANH, LỊCH SỬ - ĐỊA LÍ, GDCD.
+- Khối lớp (lop): Ví dụ 6, 7, 8 hoặc 9.
+- Số tiết (so_tiet): Ví dụ 1, 2, 3...
+
+Trả về định dạng JSON chính xác.`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -250,14 +248,15 @@ export async function extractLessonMetadata(fileContent: string): Promise<{
             ten_bai_day: { type: Type.STRING },
             subject: { type: Type.STRING },
             lop: { type: Type.STRING },
-            so_tiet: { type: Type.STRING }
+            so_tiet: { type: Type.STRING },
           },
-          required: ["ten_bai_day"]
-        }
-      }
+          required: ["ten_bai_day"],
+        },
+      },
     });
+
     return JSON.parse(response.text || "{}");
-  } catch (e) {
+  } catch {
     return { ten_bai_day: "" };
   }
 }
@@ -266,15 +265,20 @@ export async function generateLessonPlan(inputs: FormInputs, apiKey: string): Pr
   const ai = createAI(apiKey);
   const contentParts: any[] = [];
 
-  if (inputs.autoComposeMode === 'TEXTBOOK' && (inputs as any).textbookPdfData) {
-    contentParts.push({ inlineData: { data: (inputs as any).textbookPdfData, mimeType: "application/pdf" } });
+  const textbookPdfData = (inputs as any).textbookPdfData as string | undefined;
+
+  if (inputs.autoComposeMode === "TEXTBOOK" && textbookPdfData) {
+    contentParts.push({ inlineData: { data: textbookPdfData, mimeType: "application/pdf" } });
     contentParts.push({ text: `SOẠN GIÁO ÁN CHI TIẾT BÀI: "${inputs.ten_bai_day}" từ nội dung SGK PDF đính kèm.` });
   } else {
-    contentParts.push({ text: `SOẠN GIÁO ÁN CHI TIẾT BÀI: "${inputs.ten_bai_day}" theo cấu trúc mẫu: ${inputs.khbg_mau.substring(0, 6000)}` });
+    contentParts.push({
+      text: `SOẠN GIÁO ÁN CHI TIẾT BÀI: "${inputs.ten_bai_day}" theo cấu trúc mẫu: ${inputs.khbg_mau.substring(0, 6000)}`,
+    });
   }
 
-  const promptText = `Căn cứ hành chính: Trường ${inputs.truong}, GV ${inputs.giao_vien}, Môn ${inputs.subject}, Lớp ${inputs.lop}, Tiết ${inputs.so_tiet}. Tích hợp ANQP lớp ${inputs.lop} theo TT 08/2024.`;
-  contentParts.push({ text: promptText });
+  contentParts.push({
+    text: `Căn cứ hành chính: Trường ${inputs.truong}, GV ${inputs.giao_vien}, Môn ${inputs.subject}, Lớp ${inputs.lop}, Tiết ${inputs.so_tiet}. Tích hợp ANQP lớp ${inputs.lop} theo TT 08/2024.`,
+  });
 
   try {
     const response = await ai.models.generateContent({
@@ -284,11 +288,13 @@ export async function generateLessonPlan(inputs: FormInputs, apiKey: string): Pr
         systemInstruction: SYSTEM_PROMPT,
         responseMimeType: "application/json",
         responseSchema: lessonPlanSchema,
-        thinkingConfig: { thinkingBudget: 32768 }
+        thinkingConfig: { thinkingBudget: 32768 },
       },
     });
 
     const plan = JSON.parse(response.text || "{}") as LessonPlan;
+
+    // đảm bảo header đúng thông tin người dùng nhập
     plan.header.truong = inputs.truong;
     plan.header.to = inputs.to;
     plan.header.giao_vien = inputs.giao_vien;
@@ -296,8 +302,9 @@ export async function generateLessonPlan(inputs: FormInputs, apiKey: string): Pr
     plan.header.mon = inputs.subject;
     plan.header.lop = inputs.lop;
     plan.header.so_tiet = inputs.so_tiet;
+
     return plan;
   } catch (e: any) {
-    throw new Error("Lỗi thiết kế giáo án: " + (e?.message || e));
+    throw new Error("Lỗi thiết kế giáo án: " + (e?.message || String(e)));
   }
 }
