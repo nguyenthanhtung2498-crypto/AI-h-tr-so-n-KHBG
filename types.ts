@@ -61,6 +61,10 @@ export interface LessonPlan {
     ANQP: IntegrationTopic;
     BAO_VE_MT: IntegrationTopic;
   };
+  phu_luc?: {
+    phu_luc_1?: string;
+    phu_luc_3?: string;
+  };
 }
 
 export type Subject = 'KHTN' | 'TOÁN' | 'NGỮ VĂN' | 'TIẾNG ANH' | 'LỊCH SỬ - ĐỊA LÍ' | 'GDCD';

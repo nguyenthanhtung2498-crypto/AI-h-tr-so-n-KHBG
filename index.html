@@ -8,14 +8,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script>
-        APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbykDOC3FAO41cWn1p6vaO_NgcPaIzsIqCgSbxYaOHZfcK2V6_lVQjgsX1t6LCoBrx27/exec',
-        ADMIN_MASTER_KEY: 'Admin@123456'
         window.process = { 
             env: { 
                 NODE_ENV: 'production',
-                API_KEY: ''
+                API_KEY: '' 
             } 
         };
         window.onerror = function(message, source, lineno, colno, error) {
@@ -29,10 +27,12 @@
         }
         body {
             font-family: var(--font-main);
-            background-color: #f8fafc;
+            background-color: #020617;
             margin: 0;
             padding: 0;
             min-height: 100vh;
+            color: #1e293b;
+            letter-spacing: -0.01em; /* Giảm khoảng cách chữ mặc định */
         }
         #root {
             position: relative;
@@ -40,25 +40,27 @@
         }
         .lesson-plan-container {
             font-family: var(--font-serif) !important;
+            letter-spacing: normal !important; /* KHBG chuẩn không dùng tracking rộng */
         }
         @media print {
             .no-print { display: none !important; }
-            body { background: white; }
+            body { background: white; color: black; }
             .lesson-plan-container { 
                 box-shadow: none !important;
                 border: none !important;
                 padding: 0 !important;
             }
         }
-        .mandatory-border {
-            animation: pulse-border 2s infinite;
+        
+        @keyframes marquee {
+            0% { transform: translateX(20%); }
+            100% { transform: translateX(-100%); }
         }
-        @keyframes pulse-border {
-            0% { border-color: rgba(79, 70, 229, 0.4); }
-            50% { border-color: rgba(79, 70, 229, 1); }
-            100% { border-color: rgba(79, 70, 229, 0.4); }
+        .animate-marquee {
+            display: inline-block;
+            animation: marquee 40s linear infinite;
         }
-        /* Custom scrollbar for catalog list */
+
         .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
         }
@@ -90,7 +92,7 @@
 }
 </script>
 </head>
-<body>
+<body class="bg-slate-50">
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
 </body>
