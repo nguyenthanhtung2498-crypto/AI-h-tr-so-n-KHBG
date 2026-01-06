@@ -1,5 +1,5 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { loginUser } from '../api';
 
 interface UserData {
   username: string;
@@ -7,60 +7,64 @@ interface UserData {
 }
 
 interface LoginPageProps {
-  onLogin: (userData: UserData) => void;
-}
-
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-  interface Window {
-    aistudio?: AIStudio;
-  }
+  onLogin: (userData: UserData, apiKey: string) => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [step, setStep] = useState(1);
-  const [username, setUsername] = useState('');
+
+  const [apiKey, setApiKey] = useState('');     // ✅ user tự nhập, không lưu
+  const [username, setUsername] = useState(''); // thực tế là email
   const [password, setPassword] = useState('');
-  const [hasKey, setHasKey] = useState(false);
+
   const [showError, setShowError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    checkKeyStatus();
-  }, []);
-
-  const checkKeyStatus = async () => {
-    try {
-      const selected = await window.aistudio?.hasSelectedApiKey();
-      setHasKey(!!selected);
-    } catch (e) {
-      console.warn("AI Studio bridge not available");
-    }
-  };
-
-  const handleSelectKey = async () => {
-    try {
-      await window.aistudio?.openSelectKey();
-      setHasKey(true);
-      setTimeout(() => setStep(2), 500);
-    } catch (e) {
-      setShowError("Không thể mở trình chọn Key.");
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!hasKey) {
-      setStep(1);
+  const goNext = () => {
+    if (!apiKey.trim()) {
+      setShowError("Vui lòng nhập API key của bạn.");
       return;
     }
-    if (username.trim() && password.trim()) {
-      const isAdmin = username.toLowerCase() === 'admin';
-      onLogin({ username, isAdmin });
-    } else {
+    setShowError("");
+    setStep(2);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!apiKey.trim()) {
+      setStep(1);
+      setShowError("Bạn chưa nhập API key.");
+      return;
+    }
+    if (!username.trim() || !password.trim()) {
       setShowError("Vui lòng nhập đầy đủ tài khoản và mật khẩu.");
+      return;
+    }
+
+    setLoading(true);
+    setShowError("");
+
+    try {
+      // ✅ gọi Apps Script (Google Sheet) để login thật
+      const data = await loginUser(username.trim(), password.trim());
+
+      if (!data.ok) {
+        setShowError(data.error || "Đăng nhập thất bại.");
+        return;
+      }
+
+      onLogin(
+        {
+          username: username.trim(),
+          isAdmin: data.role === "admin",
+        },
+        apiKey.trim()
+      );
+    } catch (err: any) {
+      setShowError(err?.message || "Không kết nối được server đăng nhập.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,11 +80,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           animation: subtle-zoom 30s infinite ease-in-out;
         }
       `}</style>
-      <div 
+
+      <div
         className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat animated-bg"
-        style={{ 
+        style={{
           backgroundImage: 'url("https://generativelanguage.googleapis.com/v1beta/files/ey931kic0l6v")',
-          filter: 'brightness(0.35)' 
+          filter: 'brightness(0.35)'
         }}
       />
       <div className="absolute inset-0 z-10 bg-gradient-to-tr from-indigo-950/80 via-black/20 to-indigo-900/50" />
@@ -108,56 +113,70 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         {step === 1 ? (
           <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
             <div className="text-center">
-              <h3 className="text-white font-black text-xs uppercase tracking-[0.2em] mb-3">Kết nối API Gemini</h3>
-              <p className="text-white/50 text-[10px] leading-relaxed max-w-[240px] mx-auto">
-                Chọn API Key để kích hoạt khả năng thiết kế giáo án thông minh từ Gemini 3. Pro.
+              <h3 className="text-white font-black text-xs uppercase tracking-[0.2em] mb-3">Nhập API Key Gemini</h3>
+              <p className="text-white/50 text-[10px] leading-relaxed max-w-[260px] mx-auto">
+                Mỗi lần vào app bạn cần nhập API key. Hệ thống không lưu key.
               </p>
             </div>
-            <button 
-              onClick={handleSelectKey}
-              className={`w-full py-5 px-6 rounded-3xl text-xs font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center space-x-4 ${hasKey ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-indigo-600 text-white hover:bg-indigo-500 hover:scale-[1.02] shadow-2xl shadow-indigo-900/40'}`}
+
+            <input
+              type="password"
+              className="w-full pl-6 pr-6 py-5 bg-white/5 border border-white/10 placeholder-white/30 text-white rounded-3xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold"
+              placeholder="Dán Gemini API key của bạn vào đây"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+            />
+
+            {showError && <p className="text-red-400 text-[9px] font-black text-center uppercase tracking-widest">{showError}</p>}
+
+            <button
+              onClick={goNext}
+              className="w-full py-5 px-6 bg-indigo-600 text-white rounded-3xl text-xs font-black uppercase tracking-[0.2em] hover:bg-indigo-500 hover:scale-[1.02] shadow-2xl shadow-indigo-900/40 transition-all"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
-              <span>{hasKey ? 'API ĐÃ SẴN SÀNG' : 'CHỌN API KEY'}</span>
+              TIẾP THEO →
             </button>
-            {hasKey && (
-              <button onClick={() => setStep(2)} className="w-full text-indigo-400 text-[10px] uppercase font-black tracking-widest hover:text-white transition-colors">
-                TIẾP THEO →
-              </button>
-            )}
           </div>
         ) : (
           <form className="space-y-6 animate-in slide-in-from-right-8 duration-500" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div className="relative group">
                 <input
-                  type="text" required
+                  type="text"
+                  required
                   className="w-full pl-6 pr-6 py-5 bg-white/5 border border-white/10 placeholder-white/30 text-white rounded-3xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold"
-                  placeholder="Tên đăng nhập"
-                  value={username} onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Email đăng nhập"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                 />
               </div>
               <div className="relative group">
                 <input
-                  type="password" required
+                  type="password"
+                  required
                   className="w-full pl-6 pr-6 py-5 bg-white/5 border border-white/10 placeholder-white/30 text-white rounded-3xl focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold"
                   placeholder="Mật khẩu"
-                  value={password} onChange={(e) => setPassword(e.target.value)}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
             </div>
+
             {showError && <p className="text-red-400 text-[9px] font-black text-center uppercase tracking-widest">{showError}</p>}
+
             <button
               type="submit"
-              className="w-full py-5 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-3xl text-sm font-black uppercase tracking-[0.3em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all"
+              disabled={loading}
+              className="w-full py-5 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-3xl text-sm font-black uppercase tracking-[0.3em] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-60"
             >
-              ĐĂNG NHẬP
+              {loading ? "ĐANG ĐĂNG NHẬP..." : "ĐĂNG NHẬP"}
             </button>
-            <button type="button" onClick={() => setStep(1)} className="w-full text-white/30 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">
+
+            <button type="button" onClick={() => { setStep(1); setShowError(""); }} className="w-full text-white/30 text-[9px] font-black uppercase tracking-widest hover:text-white transition-colors">
               ← THAY ĐỔI API KEY
             </button>
           </form>
         )}
+
         <div className="text-center pt-8">
           <p className="text-[8px] text-white/10 font-black tracking-[0.5em] uppercase">
             HUYNH THUC KHANG SECONDARY SCHOOL
