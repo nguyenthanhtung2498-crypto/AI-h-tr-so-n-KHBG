@@ -25,6 +25,25 @@ QUY TẮC BẮT BUỘC:
    - Bước 4 (Kết luận): PHẢI soạn sẵn nội dung ghi vở cô đọng, súc tích.`;
 
 /**
+ * Kiểm tra mã API Key có hợp lệ không bằng cách gửi một yêu cầu thử nghiệm
+ */
+export async function validateApiKey(key: string): Promise<boolean> {
+  try {
+    const ai = new GoogleGenAI({ apiKey: key });
+    // Sử dụng model 'gemini-3-flash-preview' cho các tác vụ kiểm tra cơ bản
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: 'hi',
+    });
+    return !!response.text;
+  } catch (error: any) {
+    // Nếu lỗi 404 xảy ra ở đây, thường là do model name hoặc dự án chưa kích hoạt API phù hợp
+    console.error("API Key Validation Error:", error);
+    return false;
+  }
+}
+
+/**
  * Trình trích xuất mục lục nâng cao (Hỗ trợ cả PDF văn bản và PDF ảnh quét/OCR)
  */
 export async function extractLessonListFromPdf(base64: string): Promise<string[]> {
@@ -36,28 +55,25 @@ export async function extractLessonListFromPdf(base64: string): Promise<string[]
 
   const pdf = await pdfjs.getDocument({ data: bytes }).promise;
   let fullText = "";
-  const pagesToScan = Math.min(pdf.numPages, 10); // Quét 10 trang đầu để tìm mục lục
+  const pagesToScan = Math.min(pdf.numPages, 10); 
 
-  // Thử trích xuất văn bản trực tiếp trước
   for (let i = 1; i <= pagesToScan; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
     fullText += content.items.map((item: any) => item.str).join(" ") + "\n";
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = (window as any).process?.env?.API_KEY;
+  if (!apiKey) throw new Error("Chưa cấu hình API Key.");
+  const ai = new GoogleGenAI({ apiKey });
 
-  // Nếu văn bản trích xuất được quá ngắn (có thể là PDF dạng ảnh), chuyển sang chế độ Vision AI (OCR)
   if (fullText.trim().length < 100) {
-    console.log("Phát hiện PDF dạng ảnh quét, đang kích hoạt Vision AI (OCR)...");
     const imageParts: any[] = [];
-    
-    // Chỉ lấy 5 trang đầu để tối ưu tốc độ và chi phí (thường mục lục nằm ở đây)
     const visionPages = Math.min(pdf.numPages, 5);
     
     for (let i = 1; i <= visionPages; i++) {
       const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 2.0 }); // Tăng scale để OCR chính xác hơn
+      const viewport = page.getViewport({ scale: 2.0 });
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
       if (context) {
@@ -77,7 +93,6 @@ export async function extractLessonListFromPdf(base64: string): Promise<string[]
     if (imageParts.length > 0) {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        // Fixed: Corrected contents structure to use parts array as per @google/genai guidelines.
         contents: {
           parts: [
             ...imageParts,
@@ -101,7 +116,6 @@ export async function extractLessonListFromPdf(base64: string): Promise<string[]
     }
   }
 
-  // Nếu là PDF văn bản bình thường, xử lý bằng text prompt
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
     contents: `Dưới đây là nội dung mục lục trích xuất từ sách giáo khoa. Hãy trích xuất danh sách tên các bài học.
@@ -127,11 +141,10 @@ export async function extractLessonListFromPdf(base64: string): Promise<string[]
   }
 }
 
-/**
- * Tạo Kế hoạch bài dạy (KHBG) dựa trên thông tin người dùng nhập
- */
 export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = (window as any).process?.env?.API_KEY;
+  if (!apiKey) throw new Error("Chưa cấu hình API Key.");
+  const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `Hãy soạn một Kế hoạch bài dạy (KHBG) chuyên nghiệp theo Công văn 5512 cho bài học sau:
   - Tên bài: ${inputs.ten_bai_day}
