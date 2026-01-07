@@ -63,7 +63,7 @@ export async function extractLessonListFromPdf(base64: string): Promise<string[]
     fullText += content.items.map((item: any) => item.str).join(" ") + "\n";
   }
 
-  const apiKey = (window as any).process?.env?.API_KEY;
+  const apiKey = (window as any).process?.env?.GEMINI_GEMINI_API_KEY;
   if (!apiKey) throw new Error("Chưa cấu hình API Key.");
   const ai = new GoogleGenAI({ apiKey });
 
@@ -142,7 +142,7 @@ export async function extractLessonListFromPdf(base64: string): Promise<string[]
 }
 
 export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan> {
-  const apiKey = (window as any).process?.env?.API_KEY;
+  const apiKey = (window as any).process?.env?.GEMINI_GEMINI_API_KEY;
   if (!apiKey) throw new Error("Chưa cấu hình API Key.");
   const ai = new GoogleGenAI({ apiKey });
   
