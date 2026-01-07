@@ -7,167 +7,128 @@ import * as pdfjs from "pdfjs-dist";
 pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.mjs`;
 
 const SYSTEM_PROMPT = `Bạn là Chuyên gia Sư phạm cốt cán bậc nhất, am hiểu sâu sắc Chương trình GDPT 2018 và Công văn 5512.
-NHIỆM VỤ: Thiết kế KHBG dưới dạng KỊCH BẢN GIẢNG DẠY (DIALOGUE SCRIPT).
+NHIỆM VỤ: Thiết kế KHBG dưới dạng KỊCH BẢN GIẢNG DẠY (DIALOGUE SCRIPT) cực kỳ chi tiết.
 
-QUY TẮC BẮT BUỘC:
-1. MỤC TIÊU: 
-   - PHẨM CHẤT: Chọn đúng 01 mục tiêu từ [Yêu nước, Nhân ái, Chăm chỉ, Trung thực, Trách nhiệm].
-   - NĂNG LỰC CHUNG: Chọn đúng 01 mục tiêu từ [Tự chủ và tự học, Giao tiếp và hợp tác, Giải quyết vấn đề và sáng tạo].
-   - Phải mô tả chi tiết HS làm gì để đạt được chúng.
+QUY TẮC ĐẶC BIỆT CHO MỤC "TỔ CHỨC THỰC HIỆN" (Mục d):
+Bạn phải triển khai 4 bước theo đúng tinh thần 5512:
+1. Bước 1 (Chuyển giao): GV nói câu lệnh gì? Sử dụng phương tiện gì? HS nhận nhiệm vụ như thế nào? Nêu rõ tiêu chí đánh giá sản phẩm (Rubric nhanh).
+2. Bước 2 (Thực hiện): Mô tả chi tiết hành động của HS (cá nhân/cặp/nhóm). GV làm gì để hỗ trợ? (VD: quan sát, gợi ý cho nhóm gặp khó khăn, đặt câu hỏi giàn giáo).
+3. Bước 3 (Báo cáo, thảo luận): GV điều phối thế nào? HS trình bày gì? HS khác nhận xét, phản biện ra sao? (Lồng ghép đánh giá đồng đẳng).
+4. Bước 4 (Kết luận, nhận định): GV nhận xét về thái độ và kết quả làm việc. Chốt kiến thức then chốt. Cung cấp nội dung chuẩn để HS ghi vào vở (phần này phải cô đọng, khoa học).
 
-2. TỔ CHỨC THỰC HIỆN (HÌNH THỨC KỊCH BẢN):
-   - Bước 1 (Chuyển giao): GV trình chiếu gì? Nói gì? (VD: GV: "Các em hãy quan sát hình ảnh sau và cho biết...").
-   - Bước 2 (Thực hiện): HS làm việc cá nhân/nhóm như thế nào? GV theo dõi và hỗ trợ gì?
-   - Bước 3 (Báo cáo): PHẢI viết kịch bản hội thoại:
-     - GV: "Mời đại diện nhóm 1 trình bày kết quả."
-     - HS (Đại diện nhóm 1): "Thưa thầy/cô, nhóm em nhận thấy..."
-     - GV: "Nhóm 2 có nhận xét gì không? Theo em, tại sao lại có kết quả đó?"
-   - Bước 4 (Kết luận): PHẢI soạn sẵn nội dung ghi vở cô đọng, súc tích.`;
+QUY TẮC TÍCH HỢP KĨ THUẬT DẠY HỌC TÍCH CỰC:
+- Nếu tích hợp kĩ thuật tích cực, hãy lồng ghép các bước của kĩ thuật đó (VD: Mảnh ghép thì phải có bước nhóm chuyên gia, nhóm mảnh ghép) vào trong 4 bước tổ chức thực hiện nêu trên.
+
+MÔN HỌC & NGÔN NGỮ:
+- Sử dụng thuật ngữ sư phạm chuẩn. 
+- Viết kịch bản sinh động: GV: "..."; HS: "...".`;
 
 /**
- * Kiểm tra mã API Key có hợp lệ không bằng cách gửi một yêu cầu thử nghiệm
+ * Kiểm tra mã API Key cá nhân của người dùng với phản hồi lỗi chi tiết.
+ * Đảm bảo key có quyền truy cập vào Gemini API trước khi cho phép vào app.
  */
-export async function validateApiKey(key: string): Promise<boolean> {
+export async function validateApiKey(key: string): Promise<{ success: boolean; error?: string }> {
+  const trimmedKey = key.trim();
+  if (!trimmedKey) return { success: false, error: "Vui lòng nhập mã API Key." };
+  
+  // Kiểm tra định dạng cơ bản (thường bắt đầu bằng AIza)
+  if (!trimmedKey.startsWith("AIza")) {
+    return { success: false, error: "Định dạng API Key không hợp lệ (phải bắt đầu bằng AIza...)." };
+  }
+
   try {
-    const ai = new GoogleGenAI({ apiKey: key });
-    // Sử dụng model 'gemini-3-flash-preview' cho các tác vụ kiểm tra cơ bản
+    const ai = new GoogleGenAI({ apiKey: trimmedKey });
+    // Thực hiện một yêu cầu siêu nhẹ để kiểm tra quyền truy cập
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: 'hi',
+      contents: 'Kiểm tra kết nối',
     });
-    return !!response.text;
+
+    if (response && response.text) {
+      return { success: true };
+    }
+    return { success: false, error: "Không nhận được phản hồi từ AI. Vui lòng kiểm tra lại Key." };
   } catch (error: any) {
-    // Nếu lỗi 404 xảy ra ở đây, thường là do model name hoặc dự án chưa kích hoạt API phù hợp
-    console.error("API Key Validation Error:", error);
-    return false;
+    console.error("Lỗi xác thực API Key:", error);
+    
+    const status = error.status || 0;
+    const message = error.message?.toLowerCase() || "";
+
+    if (status === 403 || message.includes("403") || message.includes("permission")) {
+      return { success: false, error: "Lỗi 403: API Key không có quyền truy cập Gemini API hoặc chưa kích hoạt dịch vụ." };
+    }
+    if (status === 401 || message.includes("401") || message.includes("unauthorized") || message.includes("invalid")) {
+      return { success: false, error: "Lỗi 401: API Key sai hoặc không tồn tại. Vui lòng kiểm tra kỹ mã đã dán." };
+    }
+    if (status === 429 || message.includes("429") || message.includes("quota") || message.includes("rate limit")) {
+      return { success: false, error: "Lỗi 429: API Key của bạn đã hết hạn mức sử dụng (Quota). Hãy thử lại sau." };
+    }
+    if (message.includes("network") || message.includes("fetch")) {
+      return { success: false, error: "Lỗi kết nối mạng. Không thể liên lạc với máy chủ AI." };
+    }
+
+    return { success: false, error: `Lỗi xác thực: ${error.message || "Mã Key không hợp lệ"}` };
   }
 }
 
-/**
- * Trình trích xuất mục lục nâng cao (Hỗ trợ cả PDF văn bản và PDF ảnh quét/OCR)
- */
+export async function extractMetadataFromTemplate(text: string): Promise<Partial<FormInputs>> {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) return {};
+  const ai = new GoogleGenAI({ apiKey });
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Trích xuất JSON thông tin hành chính từ văn bản sau: truong, to, ten_bai_day, subject, lop, so_tiet.\n\nVăn bản: ${text.substring(0, 4000)}`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            truong: { type: Type.STRING }, to: { type: Type.STRING }, ten_bai_day: { type: Type.STRING },
+            subject: { type: Type.STRING }, lop: { type: Type.STRING }, so_tiet: { type: Type.STRING }
+          }
+        }
+      }
+    });
+    return JSON.parse(response.text || "{}");
+  } catch (e) { return {}; }
+}
+
 export async function extractLessonListFromPdf(base64: string): Promise<string[]> {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-
+  for (let i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
   const pdf = await pdfjs.getDocument({ data: bytes }).promise;
   let fullText = "";
-  const pagesToScan = Math.min(pdf.numPages, 10); 
-
-  for (let i = 1; i <= pagesToScan; i++) {
+  for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
     fullText += content.items.map((item: any) => item.str).join(" ") + "\n";
   }
-
-  const apiKey = (window as any).process?.env?.GEMINI_GEMINI_API_KEY;
-  if (!apiKey) throw new Error("Chưa cấu hình API Key.");
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) return [];
   const ai = new GoogleGenAI({ apiKey });
-
-  if (fullText.trim().length < 100) {
-    const imageParts: any[] = [];
-    const visionPages = Math.min(pdf.numPages, 5);
-    
-    for (let i = 1; i <= visionPages; i++) {
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: 2.0 });
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      if (context) {
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        await page.render({ canvasContext: context, viewport }).promise;
-        const imgData = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-        imageParts.push({
-          inlineData: {
-            mimeType: "image/jpeg",
-            data: imgData
-          }
-        });
-      }
-    }
-
-    if (imageParts.length > 0) {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: {
-          parts: [
-            ...imageParts,
-            { text: "Đây là ảnh chụp các trang đầu của một cuốn sách giáo khoa. Hãy thực hiện OCR và trích xuất danh sách tên tất cả các bài học (lessons/chapters) có trong mục lục. Trả về một mảng JSON các chuỗi." }
-          ]
-        },
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING }
-          }
-        }
-      });
-      
-      try {
-        return JSON.parse(response.text || "[]");
-      } catch (e) {
-        return [];
-      }
-    }
-  }
-
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Dưới đây là nội dung mục lục trích xuất từ sách giáo khoa. Hãy trích xuất danh sách tên các bài học.
-    Trả về một mảng JSON các chuỗi (strings).
-    
-    Nội dung:
-    ${fullText}`,
+    contents: `Trích xuất mảng JSON tên các bài học:\n${fullText}`,
     config: {
       responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: { type: Type.STRING }
-      }
+      responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
     }
   });
-
-  try {
-    const text = response.text || "[]";
-    return JSON.parse(text);
-  } catch (e) {
-    console.error("Failed to parse lesson list", e);
-    return [];
-  }
+  try { return JSON.parse(response.text || "[]"); } catch (e) { return []; }
 }
 
 export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan> {
-  const apiKey = (window as any).process?.env?.GEMINI_GEMINI_API_KEY;
-  if (!apiKey) throw new Error("Chưa cấu hình API Key.");
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) throw new Error("Mất kết nối API Key.");
   const ai = new GoogleGenAI({ apiKey });
   
-  const prompt = `Hãy soạn một Kế hoạch bài dạy (KHBG) chuyên nghiệp theo Công văn 5512 cho bài học sau:
-  - Tên bài: ${inputs.ten_bai_day}
-  - Môn: ${inputs.subject}
-  - Lớp: ${inputs.lop}
-  - Số tiết: ${inputs.so_tiet}
-  - Các yêu cầu tích hợp:
-    + An toàn giao thông: ${inputs.integrate_ATGT ? 'Có' : 'Không'}
-    + An ninh quốc phòng: ${inputs.integrate_ANQP ? 'Có' : 'Không'}
-    + Bảo vệ môi trường: ${inputs.integrate_environment ? 'Có' : 'Không'}
-    + Phương pháp tích cực: ${inputs.integrate_active_methods ? 'Có' : 'Không'}
-    + Năng lực số (3456): ${inputs.nang_luc_so ? 'Có' : 'Không'}
-    + Đánh giá năng lực AI: ${inputs.ai_competency_assessment ? 'Có' : 'Không'}
-  
-  Dữ liệu bổ sung:
-  - Mục tiêu thêm: ${inputs.muc_tieu_them}
-  - Phụ lục 1: ${inputs.phu_luc_1}
-  - Phụ lục 3: ${inputs.phu_luc_3}
-  - Giáo án mẫu/Nội dung SGK: ${inputs.autoComposeMode === 'TEMPLATE' ? inputs.khbg_mau : 'Sử dụng kiến thức SGK'}
-
-  Yêu cầu về cấu trúc kịch bản giảng dạy (Dialogue Script):
-  - Tổ chức thực hiện phải có lời thoại GV và dự kiến trả lời của HS.
-  - Phải thể hiện rõ 4 bước của CV 5512.`;
+  const prompt = `Soạn KHBG 5512 kịch bản chi tiết:
+  - Bài: ${inputs.ten_bai_day} | Môn: ${inputs.subject} | Lớp: ${inputs.lop} | Tiết: ${inputs.so_tiet}
+  - Tích hợp Kỹ thuật tích cực: ${inputs.integrate_active_methods ? 'CÓ (Yêu cầu lồng ghép vào kịch bản 4 bước)' : 'Không'}
+  - Tích hợp khác: ATGT(${inputs.integrate_ATGT}), Môi trường(${inputs.integrate_environment}), AI(${inputs.ai_competency_assessment})
+  - Nguồn dữ liệu: ${inputs.autoComposeMode === 'TEMPLATE' ? 'File giáo án mẫu' : 'Chuẩn GDPT 2018'}`;
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
@@ -181,13 +142,8 @@ export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan
           header: {
             type: Type.OBJECT,
             properties: {
-              truong: { type: Type.STRING },
-              to: { type: Type.STRING },
-              giao_vien: { type: Type.STRING },
-              ten_bai_day: { type: Type.STRING },
-              mon: { type: Type.STRING },
-              lop: { type: Type.STRING },
-              so_tiet: { type: Type.STRING }
+              truong: { type: Type.STRING }, to: { type: Type.STRING }, giao_vien: { type: Type.STRING },
+              ten_bai_day: { type: Type.STRING }, mon: { type: Type.STRING }, lop: { type: Type.STRING }, so_tiet: { type: Type.STRING }
             }
           },
           muc_tieu: {
@@ -213,6 +169,8 @@ export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan
               properties: {
                 hoat_dong_so: { type: Type.NUMBER },
                 ten_hoat_dong: { type: Type.STRING },
+                ky_thuat_day_hoc: { type: Type.STRING },
+                mo_ta_ky_thuat_chi_tiet: { type: Type.STRING },
                 muc_tieu: { type: Type.ARRAY, items: { type: Type.STRING } },
                 noi_dung: { type: Type.ARRAY, items: { type: Type.STRING } },
                 san_pham: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -227,44 +185,12 @@ export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan
                 }
               }
             }
-          },
-          ai_assessment: {
-            type: Type.OBJECT,
-            properties: {
-              enabled: { type: Type.BOOLEAN },
-              rubric: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    tieu_chi: { type: Type.STRING },
-                    muc_dat: { type: Type.STRING },
-                    minh_chung: { type: Type.STRING }
-                  }
-                }
-              },
-              huong_dan_dao_duc_ai: { type: Type.ARRAY, items: { type: Type.STRING } }
-            }
-          },
-          tich_hop: {
-            type: Type.OBJECT,
-            properties: {
-              ATGT: { type: Type.OBJECT, properties: { enabled: { type: Type.BOOLEAN }, the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } } } },
-              ANQP: { type: Type.OBJECT, properties: { enabled: { type: Type.BOOLEAN }, the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } } } },
-              BAO_VE_MT: { type: Type.OBJECT, properties: { enabled: { type: Type.BOOLEAN }, the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } } } }
-            }
           }
         },
-        required: ["header", "muc_tieu", "thiet_bi_hoc_lieu", "tien_trinh_day_hoc"]
+        required: ["header", "muc_tieu", "tien_trinh_day_hoc"]
       }
     }
   });
 
-  try {
-    const text = response.text || "{}";
-    return JSON.parse(text);
-  } catch (e) {
-    console.error("Failed to parse lesson plan", e);
-    throw new Error("Không thể tạo giáo án từ phản hồi AI.");
-  }
+  try { return JSON.parse(response.text || "{}"); } catch (e) { throw new Error("Lỗi xử lý phản hồi từ AI."); }
 }

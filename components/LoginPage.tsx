@@ -22,43 +22,49 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!apiKey.trim()) {
-      setShowError("VUI LÒNG DÁN MÃ API KEY VÀO Ô TRÊN.");
+    const trimmedKey = apiKey.trim();
+    if (!trimmedKey) {
+      setShowError("VUI LÒNG DÁN MÃ API KEY ĐỂ KÍCH HOẠT HỆ THỐNG.");
       return;
     }
 
     if (!username.trim() || !password.trim()) {
-      setShowError("VUI LÒNG NHẬP TÀI KHOẢN VÀ MẬT KHẨU TRƯỜNG.");
+      setShowError("VUI LÒNG NHẬP ĐẦY ĐỦ TÀI KHOẢN VÀ MẬT KHẨU.");
       return;
     }
 
     setIsAuthenticating(true);
     setShowError('');
-    setStatusMessage('ĐANG XÁC THỰC MÃ API KEY...');
+    setStatusMessage('HỆ THỐNG ĐANG KIỂM TRA MÃ API KEY...');
 
     try {
-      // 1. Xác thực mã API Key trước (Rất quan trọng)
-      const isValidKey = await validateApiKey(apiKey.trim());
+      // 1. Bước quan trọng nhất: Xác thực API Key thực tế
+      const validation = await validateApiKey(trimmedKey);
 
-      if (!isValidKey) {
-        setShowError("MÃ API KEY KHÔNG HỢP LỆ. VUI LÒNG COPY VÀ DÁN LẠI CHÍNH XÁC.");
+      if (!validation.success) {
+        setShowError(validation.error || "MÃ API KEY KHÔNG HOẠT ĐỘNG.");
         setIsAuthenticating(false);
         return;
       }
 
-      // 2. Xác thực tài khoản hệ thống (Simulated)
-      setStatusMessage('ĐANG KIỂM TRA TÀI KHOẢN...');
+      // 2. Nếu Key ổn, kiểm tra tài khoản (Simulated)
+      setStatusMessage('KEY HỢP LỆ! ĐANG ĐĂNG NHẬP...');
       const lowerUser = username.toLowerCase();
-      const isDemo = (lowerUser === 'demo1' || lowerUser === 'demo2') && password === '123456';
+      // Cho phép demo và admin
+      const isDemo = (lowerUser === 'demo1' || lowerUser === 'demo2' || lowerUser === 'demo3') && password === '123456';
       const isAdmin = lowerUser === 'admin' && password === '123456';
 
       if (isDemo || isAdmin) {
-        onLogin({ username: username.trim(), isAdmin: isAdmin }, apiKey.trim());
+        // Lưu key vào env giả lập ngay lập tức
+        (process.env as any).API_KEY = trimmedKey;
+        if ((window as any).process) (window as any).process.env.API_KEY = trimmedKey;
+        
+        onLogin({ username: username.trim(), isAdmin: isAdmin }, trimmedKey);
       } else {
-        setShowError("TÀI KHOẢN HOẶC MẬT KHẨU TRƯỜNG SAI.");
+        setShowError("TÀI KHOẢN HOẶC MẬT KHẨU TRƯỜNG KHÔNG CHÍNH XÁC.");
       }
     } catch (err) {
-      setShowError("LỖI KẾT NỐI. VUI LÒNG KIỂM TRA MẠNG.");
+      setShowError("CÓ LỖI XẢY RA TRONG QUÁ TRÌNH XÁC THỰC.");
     } finally {
       setIsAuthenticating(false);
       setStatusMessage('');
@@ -67,7 +73,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#020617] p-6 relative overflow-hidden font-sans">
-      {/* Hiệu ứng nền */}
+      {/* Background patterns */}
       <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-indigo-600 rounded-full blur-[150px]"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-600 rounded-full blur-[150px]"></div>
@@ -89,12 +95,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         </div>
 
         <form onSubmit={handleLogin} className="space-y-8">
-          {/* PHẦN NHẬP KEY THỦ CÔNG - NỔI BẬT NHẤT */}
+          {/* API KEY SECTION */}
           <div className="p-6 bg-indigo-600/20 border-2 border-indigo-500/30 rounded-[2rem] shadow-inner space-y-4">
             <div className="flex justify-between items-center px-1">
               <label className="text-[11px] font-black text-indigo-300 uppercase tracking-widest flex items-center">
                 <span className="w-2 h-2 bg-indigo-400 rounded-full mr-2 animate-pulse"></span>
-                DÁN MÃ API GEMINI TẠI ĐÂY
+                DÁN MÃ API KEY GEMINI
               </label>
               <a 
                 href="https://aistudio.google.com/app/apikey" 
@@ -110,29 +116,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 required 
                 rows={2}
                 className="w-full px-5 py-4 bg-slate-950/50 border border-indigo-500/30 text-indigo-100 rounded-2xl focus:outline-none focus:border-indigo-400 font-mono text-sm placeholder:text-slate-700 transition-all resize-none shadow-inner" 
-                placeholder="Dán mã (AIzaSy...) của bạn vào đây..." 
+                placeholder="Mã API Key (AIzaSy...)" 
                 value={apiKey} 
                 onChange={(e) => setApiKey(e.target.value)} 
                 disabled={isAuthenticating}
               />
-              <div className="absolute right-3 bottom-3 opacity-20">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                </svg>
-              </div>
             </div>
+            <p className="text-[9px] text-indigo-300/60 font-medium italic text-center">API Key dùng để AI làm việc trực tiếp trên tài khoản của bạn.</p>
           </div>
 
-          {/* PHẦN TÀI KHOẢN TRƯỜNG */}
+          {/* CREDENTIALS SECTION */}
           <div className="space-y-4 px-2">
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Tài khoản & Mật khẩu trường</label>
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Đăng nhập tài khoản trường</label>
               <div className="grid grid-cols-1 gap-3">
                 <input 
                   type="text" 
                   required 
                   className="w-full px-6 py-4 bg-white/5 border border-white/10 text-white rounded-2xl focus:outline-none focus:border-indigo-500 font-bold uppercase text-sm placeholder:text-slate-600 transition-all" 
-                  placeholder="TÊN ĐĂNG NHẬP" 
+                  placeholder="Tên đăng nhập" 
                   value={username} 
                   onChange={(e) => setUsername(e.target.value)} 
                   disabled={isAuthenticating}
@@ -141,7 +143,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                   type="password" 
                   required 
                   className="w-full px-6 py-4 bg-white/5 border border-white/10 text-white rounded-2xl focus:outline-none focus:border-indigo-500 font-bold uppercase text-sm placeholder:text-slate-600 transition-all" 
-                  placeholder="MẬT KHẨU" 
+                  placeholder="Mật khẩu" 
                   value={password} 
                   onChange={(e) => setPassword(e.target.value)} 
                   disabled={isAuthenticating}
@@ -151,7 +153,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           </div>
 
           {showError && (
-            <div className="mx-2 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-[10px] font-black text-center uppercase leading-tight animate-shake">
+            <div className="mx-2 p-4 bg-red-500/20 border border-red-500/40 rounded-2xl text-red-400 text-[10px] font-black text-center uppercase leading-tight animate-shake">
               ⚠️ {showError}
             </div>
           )}
@@ -178,7 +180,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 </>
               ) : (
                 <>
-                  <span>VÀO HỆ THỐNG</span>
+                  <span>XÁC THỰC VÀ ĐĂNG NHẬP</span>
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
