@@ -9,16 +9,9 @@ interface LayoutProps {
 }
 
 export const Layout: React.FC<LayoutProps> = ({ children, user, isAdmin, onLogout }) => {
-  const handleSelectKey = async () => {
-    if (typeof window.aistudio?.openSelectKey === 'function') {
-      await window.aistudio.openSelectKey();
-    }
-  };
-
   const SchoolSeal = () => (
     <svg viewBox="0 0 100 100" className="w-10 h-10 drop-shadow-sm">
       <defs>
-        {/* Fix: Changed second x2 attribute to y2 to define gradient direction correctly */}
         <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" style={{ stopColor: '#fbbf24', stopOpacity: 1 }} />
           <stop offset="100%" style={{ stopColor: '#d97706', stopOpacity: 1 }} />
@@ -51,7 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, isAdmin, onLogou
             <div className="animate-marquee whitespace-nowrap text-[11px] font-bold text-amber-300 uppercase tracking-wide px-4">
               <span className="mx-4">✨ Tối ưu Công văn 5512</span>
               <span className="mx-4">🚀 Phân tích SGK PDF Tự động</span>
-              <span className="mx-4">✨ Công nghệ Gemini 3.0 Pro Cao cấp</span>
+              <span className="mx-4">✨ Công nghệ Gemini 3.0 Flash Cao cấp</span>
               <span className="mx-4">🚀 Xã Hưng Thịnh - Chuyên nghiệp - Hiện đại</span>
             </div>
           </div>
@@ -65,9 +58,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, user, isAdmin, onLogou
                   )}
                   <div className="text-white text-sm font-black uppercase tracking-tight italic">GV. {user}</div>
                 </div>
-                <button onClick={handleSelectKey} className="text-indigo-400 text-[8px] hover:text-indigo-200 transition-colors font-black uppercase tracking-widest">
-                  CÀI ĐẶT API KEY
-                </button>
+                <div className="text-emerald-400 text-[8px] font-black uppercase tracking-widest">
+                  AI KEY: ĐÃ KÍCH HOẠT
+                </div>
               </div>
             )}
             {onLogout && (

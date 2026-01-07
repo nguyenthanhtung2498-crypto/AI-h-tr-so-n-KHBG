@@ -15,6 +15,7 @@ export interface LessonObjectives {
   nang_luc: {
     chung: string[];
     dac_thu: string[];
+    so?: string[];
   };
   pham_chat: string[];
 }
@@ -26,44 +27,45 @@ export interface ActivityStep {
   ket_luan_nhan_dinh: string[];
 }
 
+export interface QuestionItem {
+  loai: 'TRAC_NGHIEM' | 'TU_LUAN';
+  cau_hoi: string;
+  lua_chon?: string[];
+  dap_an_goi_y: string;
+  muc_do: 'NHAN_BIET' | 'THONG_HIEU' | 'VAN_DUNG' | 'VAN_DUNG_CAO';
+}
+
 export interface Activity {
   hoat_dong_so: number;
   ten_hoat_dong: string;
+  ky_thuat_day_hoc?: string;
+  mo_ta_ky_thuat_chi_tiet?: string;
   muc_tieu: string[];
   noi_dung: string[];
   san_pham: string[];
   to_chuc_thuc_hien: ActivityStep;
-}
-
-export interface RubricItem {
-  tieu_chi: string;
-  muc_dat: string;
-  minh_chung: string;
-}
-
-export interface IntegrationTopic {
-  enabled: boolean;
-  the_hien_o: string[];
+  he_thong_cau_hoi?: QuestionItem[];
 }
 
 export interface LessonPlan {
+  error?: string; // Trường báo lỗi nếu không thể tích hợp
   header: LessonHeader;
   muc_tieu: LessonObjectives;
   thiet_bi_hoc_lieu: string[];
   tien_trinh_day_hoc: Activity[];
   ai_assessment: {
     enabled: boolean;
-    rubric: RubricItem[];
+    rubric: {
+      tieu_chi: string;
+      muc_dat: string;
+      minh_chung: string;
+    }[];
     huong_dan_dao_duc_ai: string[];
   };
   tich_hop: {
-    ATGT: IntegrationTopic;
-    ANQP: IntegrationTopic;
-    BAO_VE_MT: IntegrationTopic;
-  };
-  phu_luc?: {
-    phu_luc_1?: string;
-    phu_luc_3?: string;
+    ATGT: { enabled: boolean; the_hien_o: string[] };
+    ANQP: { enabled: boolean; the_hien_o: string[] };
+    BAO_VE_MT: { enabled: boolean; the_hien_o: string[] };
   };
 }
 
@@ -82,10 +84,12 @@ export interface FormInputs {
   integrate_ATGT: boolean;
   integrate_ANQP: boolean;
   integrate_environment: boolean;
+  integrate_active_methods: boolean;
   phu_luc_1: string;
   phu_luc_3: string;
   khbg_mau: string;
-  nang_luc_so: string;
+  nang_luc_so: boolean;
+  nang_luc_so_file_data?: string; // Trường mới chứa nội dung tệp Năng lực số
   autoComposeMode: 'TEMPLATE' | 'TEXTBOOK';
-  textbookPdfData?: string; // base64
+  textbookPdfData?: string;
 }

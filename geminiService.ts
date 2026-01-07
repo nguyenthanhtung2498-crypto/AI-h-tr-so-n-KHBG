@@ -3,216 +3,255 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { FormInputs, LessonPlan } from "./types";
 import * as pdfjs from "pdfjs-dist";
 
-pdfjs.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.10.38/build/pdf.worker.mjs`;
+// Cấu hình worker cho pdf.js
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.mjs`;
 
-const SYSTEM_PROMPT = `Bạn là Chuyên gia Giáo dục cao cấp, am hiểu sâu sắc Công văn 5512/BGDĐT và Công văn 3456/BGDĐT-GDTrH (Khung năng lực số cho học sinh).
-NHIỆM VỤ: Thiết kế Kế hoạch bài dạy (KHBG) có chiều sâu, cá nhân hóa cao.
+const SYSTEM_PROMPT = `Bạn là Chuyên gia Sư phạm cốt cán bậc nhất, am hiểu sâu sắc Chương trình GDPT 2018 và Công văn 5512.
+NHIỆM VỤ: Thiết kế KHBG dưới dạng KỊCH BẢN GIẢNG DẠY (DIALOGUE SCRIPT).
 
-QUY TẮC CHỌN LỌC NĂNG LỰC (BẮT BUỘC):
-1. Năng lực chung: Chỉ chọn DUY NHẤT 01 năng lực tiêu biểu nhất.
-2. Phẩm chất: Chỉ chọn DUY NHẤT 01 phẩm chất đặc trưng nhất.
-3. Năng lực đặc thù: Chọn năng lực môn học bám sát "Yêu cầu cần đạt" từ tệp phụ lục được cung cấp.
-4. Năng lực số (CV 3456): Nếu có tệp NLS, chỉ chọn DUY NHẤT 01 mã năng lực số phù hợp.
-=> Sau khi chọn, TOÀN BỘ nội dung các hoạt động dạy học phải tập trung xoáy sâu vào việc rèn luyện đúng các năng lực/phẩm chất đã chọn này.
+QUY TẮC BẮT BUỘC:
+1. MỤC TIÊU: 
+   - PHẨM CHẤT: Chọn đúng 01 mục tiêu từ [Yêu nước, Nhân ái, Chăm chỉ, Trung thực, Trách nhiệm].
+   - NĂNG LỰC CHUNG: Chọn đúng 01 mục tiêu từ [Tự chủ và tự học, Giao tiếp và hợp tác, Giải quyết vấn đề và sáng tạo].
+   - Phải mô tả chi tiết HS làm gì để đạt được chúng.
 
-QUY TẮC TIẾN TRÌNH DẠY HỌC:
-- LỒNG GHÉP KĨ THUẬT DẠY HỌC TÍCH CỰC: Tự động chọn 01 kĩ thuật dạy học tích cực (ví dụ: Mảnh ghép, Khăn trải bàn, Sơ đồ tư duy, Trạm, KWL, Think-Pair-Share...) phù hợp nhất với nội dung bài học để triển khai trong 01 hoạt động chính. Ghi rõ tên kĩ thuật trong phần "Tổ chức thực hiện".
-- Cấu trúc 4 bước (a, b, c, d): GV giao nhiệm vụ -> HS thực hiện -> Báo cáo/Thảo luận -> Kết luận/Nhận định.
+2. TỔ CHỨC THỰC HIỆN (HÌNH THỨC KỊCH BẢN):
+   - Bước 1 (Chuyển giao): GV trình chiếu gì? Nói gì? (VD: GV: "Các em hãy quan sát hình ảnh sau và cho biết...").
+   - Bước 2 (Thực hiện): HS làm việc cá nhân/nhóm như thế nào? GV theo dõi và hỗ trợ gì?
+   - Bước 3 (Báo cáo): PHẢI viết kịch bản hội thoại:
+     - GV: "Mời đại diện nhóm 1 trình bày kết quả."
+     - HS (Đại diện nhóm 1): "Thưa thầy/cô, nhóm em nhận thấy..."
+     - GV: "Nhóm 2 có nhận xét gì không? Theo em, tại sao lại có kết quả đó?"
+   - Bước 4 (Kết luận): PHẢI soạn sẵn nội dung ghi vở cô đọng, súc tích.`;
 
-QUY TẮC ĐỌC DỮ LIỆU:
-- Ưu tiên trích xuất tên bài, yêu cầu cần đạt và thời lượng từ Phụ lục 1 (Tổ) và Phụ lục 3 (Cá nhân).`;
+/**
+ * Trình trích xuất mục lục nâng cao (Hỗ trợ cả PDF văn bản và PDF ảnh quét/OCR)
+ */
+export async function extractLessonListFromPdf(base64: string): Promise<string[]> {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
 
-const lessonPlanSchema = {
-  type: Type.OBJECT,
-  properties: {
-    header: {
-      type: Type.OBJECT,
-      properties: {
-        truong: { type: Type.STRING },
-        to: { type: Type.STRING },
-        giao_vien: { type: Type.STRING },
-        ten_bai_day: { type: Type.STRING },
-        mon: { type: Type.STRING },
-        lop: { type: Type.STRING },
-        so_tiet: { type: Type.STRING },
-        ghi_chu: { type: Type.STRING }
-      },
-      required: ["truong", "to", "giao_vien", "ten_bai_day", "mon", "lop", "so_tiet"]
-    },
-    muc_tieu: {
-      type: Type.OBJECT,
-      properties: {
-        kien_thuc: { type: Type.ARRAY, items: { type: Type.STRING } },
-        nang_luc: {
-          type: Type.OBJECT,
-          properties: {
-            chung: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Chọn 1 năng lực chung duy nhất" },
-            dac_thu: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Yêu cầu cần đạt bám sát Phụ lục" },
-            so: { type: Type.ARRAY, items: { type: Type.STRING }, description: "1 mã năng lực số duy nhất theo CV 3456" }
-          },
-          required: ["chung", "dac_thu"]
-        },
-        pham_chat: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Chọn 1 phẩm chất duy nhất" }
-      },
-      required: ["kien_thuc", "nang_luc", "pham_chat"]
-    },
-    thiet_bi_hoc_lieu: { type: Type.ARRAY, items: { type: Type.STRING } },
-    tien_trinh_day_hoc: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          hoat_dong_so: { type: Type.INTEGER },
-          ten_hoat_dong: { type: Type.STRING },
-          ky_thuat_day_hoc: { type: Type.STRING, description: "Tên kĩ thuật tích cực sử dụng" },
-          muc_tieu: { type: Type.ARRAY, items: { type: Type.STRING } },
-          noi_dung: { type: Type.ARRAY, items: { type: Type.STRING } },
-          san_pham: { type: Type.ARRAY, items: { type: Type.STRING } },
-          to_chuc_thuc_hien: {
-            type: Type.OBJECT,
-            properties: {
-              chuyen_giao_nhiem_vu: { type: Type.ARRAY, items: { type: Type.STRING } },
-              thuc_hien_nhiem_vu: { type: Type.ARRAY, items: { type: Type.STRING } },
-              bao_cao_thao_luan: { type: Type.ARRAY, items: { type: Type.STRING } },
-              ket_luan_nhan_dinh: { type: Type.ARRAY, items: { type: Type.STRING } }
-            },
-            required: ["chuyen_giao_nhiem_vu", "thuc_hien_nhiem_vu", "bao_cao_thao_luan", "ket_luan_nhan_dinh"]
-          }
-        },
-        required: ["hoat_dong_so", "ten_hoat_dong", "muc_tieu", "noi_dung", "san_pham", "to_chuc_thuc_hien"]
-      }
-    },
-    ai_assessment: {
-      type: Type.OBJECT,
-      properties: {
-        enabled: { type: Type.BOOLEAN },
-        rubric: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              tieu_chi: { type: Type.STRING },
-              muc_dat: { type: Type.STRING },
-              minh_chung: { type: Type.STRING }
-            },
-            required: ["tieu_chi", "muc_dat", "minh_chung"]
-          }
-        },
-        huong_dan_dao_duc_ai: { type: Type.ARRAY, items: { type: Type.STRING } }
-      },
-      required: ["enabled", "rubric", "huong_dan_dao_duc_ai"]
-    },
-    tich_hop: {
-      type: Type.OBJECT,
-      properties: {
-        ATGT: { type: Type.OBJECT, properties: { enabled: { type: Type.BOOLEAN }, the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } } }, required: ["enabled", "the_hien_o"] },
-        ANQP: { type: Type.OBJECT, properties: { enabled: { type: Type.BOOLEAN }, the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } } }, required: ["enabled", "the_hien_o"] },
-        BAO_VE_MT: { type: Type.OBJECT, properties: { enabled: { type: Type.BOOLEAN }, the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } } }, required: ["enabled", "the_hien_o"] }
-      },
-      required: ["ATGT", "ANQP", "BAO_VE_MT"]
-    },
-    phu_luc: {
-      type: Type.OBJECT,
-      properties: {
-        phu_luc_1: { type: Type.STRING },
-        phu_luc_3: { type: Type.STRING }
-      }
-    }
-  },
-  required: ["header", "muc_tieu", "thiet_bi_hoc_lieu", "tien_trinh_day_hoc", "ai_assessment", "tich_hop"]
-};
+  const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+  let fullText = "";
+  const pagesToScan = Math.min(pdf.numPages, 10); // Quét 10 trang đầu để tìm mục lục
 
-async function getPdfVisualDiagnosis(pdfBase64: string) {
-  const pdfData = atob(pdfBase64);
-  const uint8Array = new Uint8Array(pdfData.length);
-  for (let i = 0; i < pdfData.length; i++) uint8Array[i] = pdfData.charCodeAt(i);
-  const loadingTask = pdfjs.getDocument({ data: uint8Array });
-  const pdf = await loadingTask.promise;
-  let summaryText = "";
-  const pageImages: string[] = [];
-  const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
-  for (let i = 1; i <= Math.min(10, pdf.numPages); i++) {
+  // Thử trích xuất văn bản trực tiếp trước
+  for (let i = 1; i <= pagesToScan; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    summaryText += `[Trang ${i}]: ${content.items.map((it: any) => it.str).join(" ")}\n\n`;
-    const viewport = page.getViewport({ scale: 1.2 });
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-    await page.render({ canvasContext: context!, viewport }).promise;
-    pageImages.push(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
+    fullText += content.items.map((item: any) => item.str).join(" ") + "\n";
   }
-  return { summaryText, pageImages };
-}
 
-export async function extractCatalogFromPdf(pdfBase64: string): Promise<string[]> {
-  // Luôn khởi tạo instance mới để lấy API Key vừa được dán/chọn
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  const diag = await getPdfVisualDiagnosis(pdfBase64);
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: `VĂN BẢN: ${diag.summaryText}\nTìm danh sách các bài học (mục lục). Trả về mảng JSON.`,
-    config: { responseMimeType: "application/json", responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } } }
-  });
-  return JSON.parse(response.text || "[]");
-}
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export async function extractLessonMetadata(fileContent: string) {
-  // Luôn khởi tạo instance mới để lấy API Key vừa được dán/chọn
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  // Nếu văn bản trích xuất được quá ngắn (có thể là PDF dạng ảnh), chuyển sang chế độ Vision AI (OCR)
+  if (fullText.trim().length < 100) {
+    console.log("Phát hiện PDF dạng ảnh quét, đang kích hoạt Vision AI (OCR)...");
+    const imageParts: any[] = [];
+    
+    // Chỉ lấy 5 trang đầu để tối ưu tốc độ và chi phí (thường mục lục nằm ở đây)
+    const visionPages = Math.min(pdf.numPages, 5);
+    
+    for (let i = 1; i <= visionPages; i++) {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 2.0 }); // Tăng scale để OCR chính xác hơn
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      if (context) {
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        await page.render({ canvasContext: context, viewport }).promise;
+        const imgData = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+        imageParts.push({
+          inlineData: {
+            mimeType: "image/jpeg",
+            data: imgData
+          }
+        });
+      }
+    }
+
+    if (imageParts.length > 0) {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        // Fixed: Corrected contents structure to use parts array as per @google/genai guidelines.
+        contents: {
+          parts: [
+            ...imageParts,
+            { text: "Đây là ảnh chụp các trang đầu của một cuốn sách giáo khoa. Hãy thực hiện OCR và trích xuất danh sách tên tất cả các bài học (lessons/chapters) có trong mục lục. Trả về một mảng JSON các chuỗi." }
+          ]
+        },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING }
+          }
+        }
+      });
+      
+      try {
+        return JSON.parse(response.text || "[]");
+      } catch (e) {
+        return [];
+      }
+    }
+  }
+
+  // Nếu là PDF văn bản bình thường, xử lý bằng text prompt
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: `Phân tích văn bản và dự đoán: ten_bai_day (tên bài/chủ đề), subject (Môn học), lop (Khối lớp), so_tiet (Số tiết).
-    Văn bản: ${fileContent.substring(0, 8000)}`,
-    config: { 
-      responseMimeType: "application/json", 
-      responseSchema: { 
-        type: Type.OBJECT, 
-        properties: { 
-          ten_bai_day: { type: Type.STRING }, 
-          subject: { type: Type.STRING }, 
-          lop: { type: Type.STRING }, 
-          so_tiet: { type: Type.STRING } 
-        } 
-      } 
+    model: 'gemini-3-flash-preview',
+    contents: `Dưới đây là nội dung mục lục trích xuất từ sách giáo khoa. Hãy trích xuất danh sách tên các bài học.
+    Trả về một mảng JSON các chuỗi (strings).
+    
+    Nội dung:
+    ${fullText}`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.ARRAY,
+        items: { type: Type.STRING }
+      }
     }
   });
-  return JSON.parse(response.text || "{}");
+
+  try {
+    const text = response.text || "[]";
+    return JSON.parse(text);
+  } catch (e) {
+    console.error("Failed to parse lesson list", e);
+    return [];
+  }
 }
 
+/**
+ * Tạo Kế hoạch bài dạy (KHBG) dựa trên thông tin người dùng nhập
+ */
 export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan> {
-  // Luôn khởi tạo instance mới để lấy API Key vừa được dán/chọn ngay tại thời điểm submit
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-  let contentParts: any[] = [];
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  if (inputs.autoComposeMode === 'TEXTBOOK' && inputs.textbookPdfData) {
-     const diag = await getPdfVisualDiagnosis(inputs.textbookPdfData);
-     diag.pageImages.forEach(img => contentParts.push({ inlineData: { data: img, mimeType: "image/jpeg" } }));
-     contentParts.push({ text: `DỮ LIỆU SGK: ${diag.summaryText}` });
-  } else {
-    contentParts.push({ text: `GIÁO ÁN MẪU: ${inputs.khbg_mau}` });
-  }
+  const prompt = `Hãy soạn một Kế hoạch bài dạy (KHBG) chuyên nghiệp theo Công văn 5512 cho bài học sau:
+  - Tên bài: ${inputs.ten_bai_day}
+  - Môn: ${inputs.subject}
+  - Lớp: ${inputs.lop}
+  - Số tiết: ${inputs.so_tiet}
+  - Các yêu cầu tích hợp:
+    + An toàn giao thông: ${inputs.integrate_ATGT ? 'Có' : 'Không'}
+    + An ninh quốc phòng: ${inputs.integrate_ANQP ? 'Có' : 'Không'}
+    + Bảo vệ môi trường: ${inputs.integrate_environment ? 'Có' : 'Không'}
+    + Phương pháp tích cực: ${inputs.integrate_active_methods ? 'Có' : 'Không'}
+    + Năng lực số (3456): ${inputs.nang_luc_so ? 'Có' : 'Không'}
+    + Đánh giá năng lực AI: ${inputs.ai_competency_assessment ? 'Có' : 'Không'}
+  
+  Dữ liệu bổ sung:
+  - Mục tiêu thêm: ${inputs.muc_tieu_them}
+  - Phụ lục 1: ${inputs.phu_luc_1}
+  - Phụ lục 3: ${inputs.phu_luc_3}
+  - Giáo án mẫu/Nội dung SGK: ${inputs.autoComposeMode === 'TEMPLATE' ? inputs.khbg_mau : 'Sử dụng kiến thức SGK'}
 
-  if (inputs.phu_luc_1) contentParts.push({ text: `PHỤ LỤC 1 (KHGD TỔ): ${inputs.phu_luc_1}` });
-  if (inputs.phu_luc_3) contentParts.push({ text: `PHỤ LỤC 3 (KHGD CÁ NHÂN): ${inputs.phu_luc_3}` });
-  if (inputs.nang_luc_so) contentParts.push({ text: `KHUNG NĂNG LỰC SỐ (3456): ${inputs.nang_luc_so}` });
-
-  contentParts.push({ text: `SOẠN BÀI: ${inputs.ten_bai_day}. 
-  YÊU CẦU:
-  - Chọn duy nhất 1 NL chung, 1 Phẩm chất, 1 NL số (nếu có).
-  - Tự động lồng ghép ít nhất 1 kĩ thuật dạy học tích cực vào tiến trình.
-  - Nội dung 4 bước tổ chức thực hiện bám sát năng lực đã chọn.` });
+  Yêu cầu về cấu trúc kịch bản giảng dạy (Dialogue Script):
+  - Tổ chức thực hiện phải có lời thoại GV và dự kiến trả lời của HS.
+  - Phải thể hiện rõ 4 bước của CV 5512.`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-pro-preview",
-    contents: { parts: contentParts },
+    model: 'gemini-3-pro-preview',
+    contents: prompt,
     config: {
       systemInstruction: SYSTEM_PROMPT,
       responseMimeType: "application/json",
-      responseSchema: lessonPlanSchema,
-      thinkingConfig: { thinkingBudget: 32768 }
-    },
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          header: {
+            type: Type.OBJECT,
+            properties: {
+              truong: { type: Type.STRING },
+              to: { type: Type.STRING },
+              giao_vien: { type: Type.STRING },
+              ten_bai_day: { type: Type.STRING },
+              mon: { type: Type.STRING },
+              lop: { type: Type.STRING },
+              so_tiet: { type: Type.STRING }
+            }
+          },
+          muc_tieu: {
+            type: Type.OBJECT,
+            properties: {
+              kien_thuc: { type: Type.ARRAY, items: { type: Type.STRING } },
+              nang_luc: {
+                type: Type.OBJECT,
+                properties: {
+                  chung: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  dac_thu: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  so: { type: Type.ARRAY, items: { type: Type.STRING } }
+                }
+              },
+              pham_chat: { type: Type.ARRAY, items: { type: Type.STRING } }
+            }
+          },
+          thiet_bi_hoc_lieu: { type: Type.ARRAY, items: { type: Type.STRING } },
+          tien_trinh_day_hoc: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                hoat_dong_so: { type: Type.NUMBER },
+                ten_hoat_dong: { type: Type.STRING },
+                muc_tieu: { type: Type.ARRAY, items: { type: Type.STRING } },
+                noi_dung: { type: Type.ARRAY, items: { type: Type.STRING } },
+                san_pham: { type: Type.ARRAY, items: { type: Type.STRING } },
+                to_chuc_thuc_hien: {
+                  type: Type.OBJECT,
+                  properties: {
+                    chuyen_giao_nhiem_vu: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    thuc_hien_nhiem_vu: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    bao_cao_thao_luan: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    ket_luan_nhan_dinh: { type: Type.ARRAY, items: { type: Type.STRING } }
+                  }
+                }
+              }
+            }
+          },
+          ai_assessment: {
+            type: Type.OBJECT,
+            properties: {
+              enabled: { type: Type.BOOLEAN },
+              rubric: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    tieu_chi: { type: Type.STRING },
+                    muc_dat: { type: Type.STRING },
+                    minh_chung: { type: Type.STRING }
+                  }
+                }
+              },
+              huong_dan_dao_duc_ai: { type: Type.ARRAY, items: { type: Type.STRING } }
+            }
+          },
+          tich_hop: {
+            type: Type.OBJECT,
+            properties: {
+              ATGT: { type: Type.OBJECT, properties: { enabled: { type: Type.BOOLEAN }, the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } } } },
+              ANQP: { type: Type.OBJECT, properties: { enabled: { type: Type.BOOLEAN }, the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } } } },
+              BAO_VE_MT: { type: Type.OBJECT, properties: { enabled: { type: Type.BOOLEAN }, the_hien_o: { type: Type.ARRAY, items: { type: Type.STRING } } } }
+            }
+          }
+        },
+        required: ["header", "muc_tieu", "thiet_bi_hoc_lieu", "tien_trinh_day_hoc"]
+      }
+    }
   });
-  
-  return JSON.parse(response.text || "{}") as LessonPlan;
+
+  try {
+    const text = response.text || "{}";
+    return JSON.parse(text);
+  } catch (e) {
+    console.error("Failed to parse lesson plan", e);
+    throw new Error("Không thể tạo giáo án từ phản hồi AI.");
+  }
 }
