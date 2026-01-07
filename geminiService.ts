@@ -147,7 +147,7 @@ async function getPdfVisualDiagnosis(pdfBase64: string) {
 
 export async function extractCatalogFromPdf(pdfBase64: string): Promise<string[]> {
   // Luôn khởi tạo instance mới để lấy API Key vừa được dán/chọn
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const diag = await getPdfVisualDiagnosis(pdfBase64);
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -159,7 +159,7 @@ export async function extractCatalogFromPdf(pdfBase64: string): Promise<string[]
 
 export async function extractLessonMetadata(fileContent: string) {
   // Luôn khởi tạo instance mới để lấy API Key vừa được dán/chọn
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `Phân tích văn bản và dự đoán: ten_bai_day (tên bài/chủ đề), subject (Môn học), lop (Khối lớp), so_tiet (Số tiết).
@@ -182,7 +182,7 @@ export async function extractLessonMetadata(fileContent: string) {
 
 export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan> {
   // Luôn khởi tạo instance mới để lấy API Key vừa được dán/chọn ngay tại thời điểm submit
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   let contentParts: any[] = [];
   
   if (inputs.autoComposeMode === 'TEXTBOOK' && inputs.textbookPdfData) {
