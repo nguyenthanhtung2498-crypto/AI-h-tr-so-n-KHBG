@@ -72,7 +72,7 @@ export async function validateApiKey(key: string): Promise<{ success: boolean; e
 }
 
 export async function extractMetadataFromTemplate(text: string): Promise<Partial<FormInputs>> {
-  const apiKey = process.env.API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return {};
   const ai = new GoogleGenAI({ apiKey });
   try {
@@ -105,7 +105,7 @@ export async function extractLessonListFromPdf(base64: string): Promise<string[]
     const content = await page.getTextContent();
     fullText += content.items.map((item: any) => item.str).join(" ") + "\n";
   }
-  const apiKey = process.env.API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return [];
   const ai = new GoogleGenAI({ apiKey });
   const response = await ai.models.generateContent({
@@ -120,7 +120,7 @@ export async function extractLessonListFromPdf(base64: string): Promise<string[]
 }
 
 export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan> {
-  const apiKey = process.env.API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("Mất kết nối API Key.");
   const ai = new GoogleGenAI({ apiKey });
   
