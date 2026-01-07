@@ -92,4 +92,6 @@ export interface FormInputs {
   nang_luc_so_file_data?: string; // Trường mới chứa nội dung tệp Năng lực số
   autoComposeMode: 'TEMPLATE' | 'TEXTBOOK';
   textbookPdfData?: string;
+  startPage?: number;
+  endPage?: number;
 }

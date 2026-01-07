@@ -38,33 +38,33 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setStatusMessage('HỆ THỐNG ĐANG KIỂM TRA MÃ API KEY...');
 
     try {
-      // 1. Bước quan trọng nhất: Xác thực API Key thực tế
+      // 1. Xác thực API Key thực tế và định dạng
       const validation = await validateApiKey(trimmedKey);
 
       if (!validation.success) {
-        setShowError(validation.error || "MÃ API KEY KHÔNG HOẠT ĐỘNG.");
+        setShowError(validation.error || "MÃ API KEY KHÔNG HOẠT ĐỘNG HOẶC SAI ĐỊNH DẠNG.");
         setIsAuthenticating(false);
         return;
       }
 
-      // 2. Nếu Key ổn, kiểm tra tài khoản (Simulated)
-      setStatusMessage('KEY HỢP LỆ! ĐANG ĐĂNG NHẬP...');
+      // 2. Nếu Key ổn, kiểm tra thông tin tài khoản
+      setStatusMessage('XÁC THỰC THÀNH CÔNG! ĐANG VÀO HỆ THỐNG...');
       const lowerUser = username.toLowerCase();
-      // Cho phép demo và admin
+      // Giả lập danh sách tài khoản hợp lệ
       const isDemo = (lowerUser === 'demo1' || lowerUser === 'demo2' || lowerUser === 'demo3') && password === '123456';
       const isAdmin = lowerUser === 'admin' && password === '123456';
 
       if (isDemo || isAdmin) {
-        // Lưu key vào env giả lập ngay lập tức
+        // Gán API Key vào môi trường ứng dụng ngay lập tức
         (process.env as any).API_KEY = trimmedKey;
         if ((window as any).process) (window as any).process.env.API_KEY = trimmedKey;
         
         onLogin({ username: username.trim(), isAdmin: isAdmin }, trimmedKey);
       } else {
-        setShowError("TÀI KHOẢN HOẶC MẬT KHẨU TRƯỜNG KHÔNG CHÍNH XÁC.");
+        setShowError("TÀI KHOẢN HOẶC MẬT KHẨU KHÔNG CHÍNH XÁC.");
       }
     } catch (err) {
-      setShowError("CÓ LỖI XẢY RA TRONG QUÁ TRÌNH XÁC THỰC.");
+      setShowError("CÓ LỖI XẢY RA TRONG QUÁ TRÌNH KẾT NỐI MÁY CHỦ.");
     } finally {
       setIsAuthenticating(false);
       setStatusMessage('');
@@ -100,7 +100,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             <div className="flex justify-between items-center px-1">
               <label className="text-[11px] font-black text-indigo-300 uppercase tracking-widest flex items-center">
                 <span className="w-2 h-2 bg-indigo-400 rounded-full mr-2 animate-pulse"></span>
-                DÁN MÃ API KEY GEMINI
+                DÁN MÃ API KEY GEMINI STUDIO
               </label>
               <a 
                 href="https://aistudio.google.com/app/apikey" 
@@ -115,14 +115,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               <textarea 
                 required 
                 rows={2}
-                className="w-full px-5 py-4 bg-slate-950/50 border border-indigo-500/30 text-indigo-100 rounded-2xl focus:outline-none focus:border-indigo-400 font-mono text-sm placeholder:text-slate-700 transition-all resize-none shadow-inner" 
-                placeholder="Mã API Key (AIzaSy...)" 
+                className={`w-full px-5 py-4 bg-slate-950/50 border ${showError.includes("Key") ? 'border-red-500' : 'border-indigo-500/30'} text-indigo-100 rounded-2xl focus:outline-none focus:border-indigo-400 font-mono text-xs placeholder:text-slate-700 transition-all resize-none shadow-inner`} 
+                placeholder="Dán mã bắt đầu bằng AIzaSy..." 
                 value={apiKey} 
                 onChange={(e) => setApiKey(e.target.value)} 
                 disabled={isAuthenticating}
               />
             </div>
-            <p className="text-[9px] text-indigo-300/60 font-medium italic text-center">API Key dùng để AI làm việc trực tiếp trên tài khoản của bạn.</p>
+            <p className="text-[9px] text-indigo-300/60 font-medium italic text-center">Hệ thống sẽ xác thực mã này với Google trước khi cho phép đăng nhập.</p>
           </div>
 
           {/* CREDENTIALS SECTION */}
@@ -176,11 +176,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <span>ĐANG KIỂM TRA...</span>
+                  <span>ĐANG XÁC THỰC...</span>
                 </>
               ) : (
                 <>
-                  <span>XÁC THỰC VÀ ĐĂNG NHẬP</span>
+                  <span>KIỂM TRA & ĐĂNG NHẬP</span>
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
