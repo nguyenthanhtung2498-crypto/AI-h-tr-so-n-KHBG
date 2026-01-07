@@ -6,20 +6,21 @@ import * as pdfjs from "pdfjs-dist";
 pdfjs.GlobalWorkerOptions.workerSrc = `https://esm.sh/pdfjs-dist@4.10.38/build/pdf.worker.mjs`;
 
 const SYSTEM_PROMPT = `Bạn là Chuyên gia Giáo dục cao cấp, am hiểu sâu sắc Công văn 5512/BGDĐT và Công văn 3456/BGDĐT-GDTrH (Khung năng lực số cho học sinh).
-NHIỆM VỤ: Thiết kế Kế hoạch bài dạy (KHBG) có chiều sâu, tập trung vào phát triển năng lực thực chất.
+NHIỆM VỤ: Thiết kế Kế hoạch bài dạy (KHBG) có chiều sâu, cá nhân hóa cao.
 
-QUY TẮC MỤC TIÊU NĂNG LỰC (QUAN TRỌNG):
-- Năng lực đặc thù: Phải trích xuất chính xác "Yêu cầu cần đạt" từ Phụ lục 1 hoặc Phụ lục 3 mà người dùng cung cấp.
-- Năng lực chung & Phẩm chất: Chỉ được chọn DUY NHẤT 01 năng lực chung và 01 phẩm chất tiêu biểu nhất để rèn luyện trong bài này. Tránh liệt kê hình thức.
-- Năng lực số (CV 3456): Nếu tích hợp, chỉ chọn DUY NHẤT 01 mã năng lực số phù hợp nhất với nội dung bài học.
+QUY TẮC CHỌN LỌC NĂNG LỰC (BẮT BUỘC):
+1. Năng lực chung: Chỉ chọn DUY NHẤT 01 năng lực tiêu biểu nhất.
+2. Phẩm chất: Chỉ chọn DUY NHẤT 01 phẩm chất đặc trưng nhất.
+3. Năng lực đặc thù: Chọn năng lực môn học bám sát "Yêu cầu cần đạt" từ tệp phụ lục được cung cấp.
+4. Năng lực số (CV 3456): Nếu có tệp NLS, chỉ chọn DUY NHẤT 01 mã năng lực số phù hợp.
+=> Sau khi chọn, TOÀN BỘ nội dung các hoạt động dạy học phải tập trung xoáy sâu vào việc rèn luyện đúng các năng lực/phẩm chất đã chọn này.
 
 QUY TẮC TIẾN TRÌNH DẠY HỌC:
-- LỒNG GHÉP KĨ THUẬT DẠY HỌC TÍCH CỰC: Bạn PHẢI chọn ít nhất 01 kĩ thuật dạy học tích cực (ví dụ: Mảnh ghép, Khăn trải bàn, KWL, Sơ đồ tư duy, Phòng tranh, Các mảnh ghép...) để thực hiện trong ít nhất 01 hoạt động của bài dạy. Ghi rõ tên kĩ thuật trong phần "Tổ chức thực hiện".
-- Mỗi hoạt động PHẢI CÓ ĐỦ 4 BƯỚC a, b, c, d (CV 5512).
-- Nội dung các bước PHẢI bám sát và phục vụ trực tiếp cho việc hình thành năng lực/phẩm chất duy nhất đã chọn ở mục I.
+- LỒNG GHÉP KĨ THUẬT DẠY HỌC TÍCH CỰC: Tự động chọn 01 kĩ thuật dạy học tích cực (ví dụ: Mảnh ghép, Khăn trải bàn, Sơ đồ tư duy, Trạm, KWL, Think-Pair-Share...) phù hợp nhất với nội dung bài học để triển khai trong 01 hoạt động chính. Ghi rõ tên kĩ thuật trong phần "Tổ chức thực hiện".
+- Cấu trúc 4 bước (a, b, c, d): GV giao nhiệm vụ -> HS thực hiện -> Báo cáo/Thảo luận -> Kết luận/Nhận định.
 
-QUY TẮC TRÍCH XUẤT:
-- Khi đọc Phụ lục 1 hoặc 3, hãy tìm cột "Yêu cầu cần đạt" và "Thời lượng" để điền vào giáo án.`;
+QUY TẮC ĐỌC DỮ LIỆU:
+- Ưu tiên trích xuất tên bài, yêu cầu cần đạt và thời lượng từ Phụ lục 1 (Tổ) và Phụ lục 3 (Cá nhân).`;
 
 const lessonPlanSchema = {
   type: Type.OBJECT,
@@ -45,13 +46,13 @@ const lessonPlanSchema = {
         nang_luc: {
           type: Type.OBJECT,
           properties: {
-            chung: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Chỉ chọn 1 năng lực chung duy nhất" },
-            dac_thu: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Yêu cầu cần đạt của môn học (KHTN, Toán...)" },
+            chung: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Chọn 1 năng lực chung duy nhất" },
+            dac_thu: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Yêu cầu cần đạt bám sát Phụ lục" },
             so: { type: Type.ARRAY, items: { type: Type.STRING }, description: "1 mã năng lực số duy nhất theo CV 3456" }
           },
           required: ["chung", "dac_thu"]
         },
-        pham_chat: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Chỉ chọn 1 phẩm chất duy nhất" }
+        pham_chat: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Chọn 1 phẩm chất duy nhất" }
       },
       required: ["kien_thuc", "nang_luc", "pham_chat"]
     },
@@ -63,7 +64,7 @@ const lessonPlanSchema = {
         properties: {
           hoat_dong_so: { type: Type.INTEGER },
           ten_hoat_dong: { type: Type.STRING },
-          ky_thuat_day_hoc: { type: Type.STRING, description: "Tên kĩ thuật dạy học tích cực sử dụng (nếu có)" },
+          ky_thuat_day_hoc: { type: Type.STRING, description: "Tên kĩ thuật tích cực sử dụng" },
           muc_tieu: { type: Type.ARRAY, items: { type: Type.STRING } },
           noi_dung: { type: Type.ARRAY, items: { type: Type.STRING } },
           san_pham: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -145,7 +146,8 @@ async function getPdfVisualDiagnosis(pdfBase64: string) {
 }
 
 export async function extractCatalogFromPdf(pdfBase64: string): Promise<string[]> {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  // Luôn khởi tạo instance mới để lấy API Key vừa được dán/chọn
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const diag = await getPdfVisualDiagnosis(pdfBase64);
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -156,12 +158,12 @@ export async function extractCatalogFromPdf(pdfBase64: string): Promise<string[]
 }
 
 export async function extractLessonMetadata(fileContent: string) {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  // Luôn khởi tạo instance mới để lấy API Key vừa được dán/chọn
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: `Hãy phân tích văn bản sau và trích xuất thông tin giáo án: ten_bai_day (tên bài/chủ đề), subject (Môn học), lop (Khối lớp), so_tiet (Số tiết).
-    Lưu ý: Nếu là Phụ lục, hãy tìm bài học sắp tới hoặc bài học chính được đề cập.
-    Văn bản: ${fileContent.substring(0, 7000)}`,
+    contents: `Phân tích văn bản và dự đoán: ten_bai_day (tên bài/chủ đề), subject (Môn học), lop (Khối lớp), so_tiet (Số tiết).
+    Văn bản: ${fileContent.substring(0, 8000)}`,
     config: { 
       responseMimeType: "application/json", 
       responseSchema: { 
@@ -179,7 +181,8 @@ export async function extractLessonMetadata(fileContent: string) {
 }
 
 export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan> {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  // Luôn khởi tạo instance mới để lấy API Key vừa được dán/chọn ngay tại thời điểm submit
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   let contentParts: any[] = [];
   
   if (inputs.autoComposeMode === 'TEXTBOOK' && inputs.textbookPdfData) {
@@ -192,13 +195,13 @@ export async function generateLessonPlan(inputs: FormInputs): Promise<LessonPlan
 
   if (inputs.phu_luc_1) contentParts.push({ text: `PHỤ LỤC 1 (KHGD TỔ): ${inputs.phu_luc_1}` });
   if (inputs.phu_luc_3) contentParts.push({ text: `PHỤ LỤC 3 (KHGD CÁ NHÂN): ${inputs.phu_luc_3}` });
-  if (inputs.nang_luc_so) contentParts.push({ text: `KHUNG NĂNG LỰC SỐ: ${inputs.nang_luc_so}` });
+  if (inputs.nang_luc_so) contentParts.push({ text: `KHUNG NĂNG LỰC SỐ (3456): ${inputs.nang_luc_so}` });
 
   contentParts.push({ text: `SOẠN BÀI: ${inputs.ten_bai_day}. 
-  BẮT BUỘC:
-  - Chọn 1 Năng lực chung, 1 Năng lực đặc thù (trích từ YCCĐ trong phụ lục), 1 Năng lực số (nếu có), 1 Phẩm chất.
-  - Sử dụng ít nhất 01 Kĩ thuật dạy học tích cực trong tiến trình.
-  - Nội dung 4 bước tổ chức thực hiện phải bám sát năng lực đã chọn.` });
+  YÊU CẦU:
+  - Chọn duy nhất 1 NL chung, 1 Phẩm chất, 1 NL số (nếu có).
+  - Tự động lồng ghép ít nhất 1 kĩ thuật dạy học tích cực vào tiến trình.
+  - Nội dung 4 bước tổ chức thực hiện bám sát năng lực đã chọn.` });
 
   const response = await ai.models.generateContent({
     model: "gemini-3-pro-preview",
